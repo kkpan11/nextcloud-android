@@ -4,7 +4,7 @@
  * SPDX-FileCopyrightText: 2018 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2017 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2017 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils.theme;
 
@@ -81,10 +81,11 @@ public final class CapabilityUtils {
 
     public static boolean checkOutdatedWarning(Resources resources,
                                                OwnCloudVersion version,
-                                               boolean hasExtendedSupport) {
+                                               boolean hasExtendedSupport,
+                                               boolean hasValidSubscription) {
         return resources.getBoolean(R.bool.show_outdated_server_warning) &&
             (MainApp.OUTDATED_SERVER_VERSION.isSameMajorVersion(version) ||
                 version.isOlderThan(MainApp.OUTDATED_SERVER_VERSION))
-            && !hasExtendedSupport;
+            && !hasExtendedSupport && !hasValidSubscription;
     }
 }

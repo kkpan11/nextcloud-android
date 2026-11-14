@@ -1,14 +1,14 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2021 2018 TSI-mc
  * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2018 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2015 David A. Velasco <dvelasco@solidgear.es>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.ui.dialog
 
@@ -26,11 +26,15 @@ import com.owncloud.android.R
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import java.util.Calendar
 import javax.inject.Inject
+import com.nextcloud.utils.AppConstants.ONE_SECOND
 
 /**
  * Dialog requesting a date after today.
  */
-class ExpirationDatePickerDialogFragment : DialogFragment(), OnDateSetListener, Injectable {
+class ExpirationDatePickerDialogFragment :
+    DialogFragment(),
+    OnDateSetListener,
+    Injectable {
 
     @JvmField
     @Inject
@@ -100,7 +104,7 @@ class ExpirationDatePickerDialogFragment : DialogFragment(), OnDateSetListener, 
 
         // Prevent days in the past may be chosen
         val picker = dialog.datePicker
-        picker.minDate = tomorrowInMillis - 1000
+        picker.minDate = tomorrowInMillis - ONE_SECOND.inWholeMilliseconds
 
         // Enforce spinners view; ignored by MD-based theme in Android >=5, but calendar is REALLY buggy
         // in Android < 5, so let's be sure it never appears (in tablets both spinners and calendar are

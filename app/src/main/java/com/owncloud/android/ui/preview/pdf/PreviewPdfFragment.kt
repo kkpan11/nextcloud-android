@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2022 Álvaro Brey Vilas <alvaro@alvarobrey.com>
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package com.owncloud.android.ui.preview.pdf
 
@@ -20,17 +20,18 @@ import com.google.android.material.snackbar.Snackbar
 import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.di.ViewModelFactory
 import com.nextcloud.utils.MenuUtils
+import com.nextcloud.utils.SnackbarUtil
 import com.nextcloud.utils.extensions.getParcelableArgument
 import com.owncloud.android.R
 import com.owncloud.android.databinding.PreviewPdfFragmentBinding
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.lib.common.utils.Log_OC
 import com.owncloud.android.ui.activity.FileDisplayActivity
-import com.owncloud.android.ui.preview.PreviewBitmapActivity
-import com.owncloud.android.utils.DisplayUtils
 import javax.inject.Inject
 
-class PreviewPdfFragment : Fragment(), Injectable {
+class PreviewPdfFragment :
+    Fragment(),
+    Injectable {
 
     @Inject
     lateinit var vmFactory: ViewModelFactory
@@ -68,7 +69,7 @@ class PreviewPdfFragment : Fragment(), Injectable {
         } catch (e: SecurityException) {
             Log_OC.e(this, "onViewCreated: trying to open password protected PDF", e)
             parentFragmentManager.popBackStack()
-            DisplayUtils.showSnackMessage(binding.root, R.string.pdf_password_protected)
+            SnackbarUtil.show(binding.root, R.string.pdf_password_protected)
         }
     }
 
@@ -86,12 +87,6 @@ class PreviewPdfFragment : Fragment(), Injectable {
                 requireContext().startActivity(intent)
             }
         }
-        viewModel.shouldShowZoomTip.observe(viewLifecycleOwner) { shouldShow ->
-            if (shouldShow) {
-                snack = DisplayUtils.showSnackMessage(binding.root, R.string.pdf_zoom_tip)
-                viewModel.onZoomTipShown()
-            }
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -100,8 +95,7 @@ class PreviewPdfFragment : Fragment(), Injectable {
         setHasOptionsMenu(true)
     }
 
-    private fun getScreenWidth(): Int =
-        requireContext().resources.displayMetrics.widthPixels
+    private fun getScreenWidth(): Int = requireContext().resources.displayMetrics.widthPixels
 
     override fun onPrepareOptionsMenu(menu: Menu) {
         super.onPrepareOptionsMenu(menu)

@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2023 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils.theme
 
@@ -17,22 +17,29 @@ import org.junit.Test
 class CapabilityUtilsIT : AbstractIT() {
     @Test
     fun checkOutdatedWarning() {
-        assertFalse(test(NextcloudVersion.nextcloud_27))
-        assertFalse(test(NextcloudVersion.nextcloud_26))
-        assertFalse(test(NextcloudVersion.nextcloud_25))
-        assertFalse(test(NextcloudVersion.nextcloud_24))
+        assertFalse(test(NextcloudVersion.nextcloud_31))
+        assertTrue(test(NextcloudVersion.nextcloud_30))
 
+        assertTrue(test(NextcloudVersion.nextcloud_29))
+        assertTrue(test(NextcloudVersion.nextcloud_28))
+        assertTrue(test(NextcloudVersion.nextcloud_27))
+        assertTrue(test(NextcloudVersion.nextcloud_26))
+        assertTrue(test(NextcloudVersion.nextcloud_25))
+        assertTrue(test(NextcloudVersion.nextcloud_24))
         assertTrue(test(NextcloudVersion.nextcloud_23))
         assertTrue(test(NextcloudVersion.nextcloud_22))
         assertTrue(test(NextcloudVersion.nextcloud_21))
         assertTrue(test(OwnCloudVersion.nextcloud_20))
-        assertTrue(test(OwnCloudVersion.nextcloud_19))
-        assertTrue(test(OwnCloudVersion.nextcloud_18))
-        assertTrue(test(OwnCloudVersion.nextcloud_17))
-        assertTrue(test(OwnCloudVersion.nextcloud_16))
     }
 
-    private fun test(version: OwnCloudVersion): Boolean {
-        return CapabilityUtils.checkOutdatedWarning(targetContext.resources, version, false)
+    @Test
+    fun checkOutdatedWarningWithSubscription() {
+        assertFalse(test(NextcloudVersion.nextcloud_31))
+        assertTrue(test(NextcloudVersion.nextcloud_30))
+
+        assertFalse(test(OwnCloudVersion.nextcloud_20, true))
     }
+
+    private fun test(version: OwnCloudVersion, hasValidSubscription: Boolean = false): Boolean =
+        CapabilityUtils.checkOutdatedWarning(targetContext.resources, version, false, hasValidSubscription)
 }

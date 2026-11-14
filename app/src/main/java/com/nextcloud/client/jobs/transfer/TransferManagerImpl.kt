@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs.transfer
 
@@ -20,6 +20,8 @@ import com.nextcloud.client.jobs.upload.UploadTask
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.operations.UploadFileOperation
 import java.util.UUID
+import com.nextcloud.utils.AppConstants.PROGRESS_PERCENTAGE_MAX
+import com.nextcloud.utils.AppConstants.PROGRESS_PERCENTAGE_MIN
 
 /**
  * Per-user file transfer manager.
@@ -31,7 +33,6 @@ import java.util.UUID
  * @param downloadTaskFactory Download task factory
  * @param threads maximum number of concurrent transfer processes
  */
-@Suppress("LongParameterList") // transfer operations requires those resources
 class TransferManagerImpl(
     private val runner: AsyncRunner,
     private val downloadTaskFactory: DownloadTask.Factory,
@@ -40,8 +41,6 @@ class TransferManagerImpl(
 ) : TransferManager {
 
     companion object {
-        const val PROGRESS_PERCENTAGE_MAX = 100
-        const val PROGRESS_PERCENTAGE_MIN = 0
         const val TEST_DOWNLOAD_PROGRESS_UPDATE_PERIOD_MS = 200L
         const val TEST_UPLOAD_PROGRESS_UPDATE_PERIOD_MS = 200L
     }
@@ -118,8 +117,8 @@ class TransferManagerImpl(
         }
     }
 
-    private fun createDownloadTask(request: DownloadRequest): TaskFunction<DownloadTask.Result, Int> {
-        return if (request.test) {
+    private fun createDownloadTask(request: DownloadRequest): TaskFunction<DownloadTask.Result, Int> =
+        if (request.test) {
             { progress: OnProgressCallback<Int>, isCancelled: IsCancelled ->
                 testDownloadTask(request.file, progress, isCancelled)
             }
@@ -130,25 +129,22 @@ class TransferManagerImpl(
             }
             wrapper
         }
-    }
 
-    private fun createUploadTask(request: UploadRequest): TaskFunction<UploadTask.Result, Int> {
-        return if (request.test) {
-            { progress: OnProgressCallback<Int>, isCancelled: IsCancelled ->
-                val file = UploadFileOperation.obtainNewOCFileToUpload(
-                    request.upload.remotePath,
-                    request.upload.localPath,
-                    request.upload.mimeType
-                )
-                testUploadTask(file, progress, isCancelled)
-            }
-        } else {
-            val uploadTask = uploadTaskFactory.create()
-            val wrapper: TaskFunction<UploadTask.Result, Int> = { _: ((Int) -> Unit), _ ->
-                uploadTask.upload(request.user, request.upload)
-            }
-            wrapper
+    private fun createUploadTask(request: UploadRequest): TaskFunction<UploadTask.Result, Int> = if (request.test) {
+        { progress: OnProgressCallback<Int>, isCancelled: IsCancelled ->
+            val file = UploadFileOperation.obtainNewOCFileToUpload(
+                request.upload.remotePath,
+                request.upload.localPath,
+                request.upload.mimeType
+            )
+            testUploadTask(file, progress, isCancelled)
         }
+    } else {
+        val uploadTask = uploadTaskFactory.create()
+        val wrapper: TaskFunction<UploadTask.Result, Int> = { _: ((Int) -> Unit), _ ->
+            uploadTask.upload(request.user, request.upload)
+        }
+        wrapper
     }
 
     private fun onTransferUpdate(transfer: Transfer) {

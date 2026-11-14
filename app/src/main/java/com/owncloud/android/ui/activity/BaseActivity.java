@@ -2,7 +2,8 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-FileCopyrightText: 2024 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.activity;
 
@@ -10,6 +11,7 @@ import android.accounts.Account;
 import android.content.Intent;
 import android.os.Bundle;
 
+import com.nextcloud.android.common.ui.util.extensions.AppCompatActivityExtensionsKt;
 import com.nextcloud.client.account.User;
 import com.nextcloud.client.account.UserAccountManager;
 import com.nextcloud.client.di.Injectable;
@@ -17,6 +19,7 @@ import com.nextcloud.client.mixins.MixinRegistry;
 import com.nextcloud.client.mixins.SessionMixin;
 import com.nextcloud.client.preferences.AppPreferences;
 import com.nextcloud.client.preferences.DarkMode;
+import com.nextcloud.repository.ClientRepository;
 import com.owncloud.android.datamodel.FileDataStorageManager;
 import com.owncloud.android.datamodel.OCFile;
 import com.owncloud.android.lib.common.utils.Log_OC;
@@ -43,13 +46,15 @@ public abstract class BaseActivity extends AppCompatActivity implements Injectab
     private boolean paused;
     protected boolean enableAccountHandling = true;
 
-    private MixinRegistry mixinRegistry = new MixinRegistry();
+    private final MixinRegistry mixinRegistry = new MixinRegistry();
     private SessionMixin sessionMixin;
 
-    @Inject UserAccountManager accountManager;
-    @Inject AppPreferences preferences;
+    @Inject protected UserAccountManager accountManager;
+    @Inject protected AppPreferences preferences;
+    @Inject protected FileDataStorageManager fileDataStorageManager;
+    @Inject protected ClientRepository clientRepository;
 
-    private AppPreferences.Listener onPreferencesChanged = new AppPreferences.Listener() {
+    private final AppPreferences.Listener onPreferencesChanged = new AppPreferences.Listener() {
         @Override
         public void onDarkThemeModeChanged(DarkMode mode) {
             onThemeSettingsModeChanged();
@@ -62,10 +67,9 @@ public abstract class BaseActivity extends AppCompatActivity implements Injectab
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        AppCompatActivityExtensionsKt.applyEdgeToEdgeWithSystemBarPadding(this);
         super.onCreate(savedInstanceState);
-        sessionMixin = new SessionMixin(this,
-                                        getContentResolver(),
-                                        accountManager);
+        sessionMixin = new SessionMixin(this, accountManager);
         mixinRegistry.add(sessionMixin);
 
         if (enableAccountHandling) {
@@ -116,7 +120,9 @@ public abstract class BaseActivity extends AppCompatActivity implements Injectab
     protected void onRestart() {
         Log_OC.v(TAG, "onRestart() start");
         super.onRestart();
-        mixinRegistry.onRestart();
+        if (enableAccountHandling) {
+            mixinRegistry.onRestart();
+        }
     }
 
     private void onThemeSettingsModeChanged() {
@@ -140,7 +146,7 @@ public abstract class BaseActivity extends AppCompatActivity implements Injectab
         sessionMixin.setAccount(account);
     }
 
-    protected void setUser(User user) {
+    public void setUser(User user) {
         sessionMixin.setUser(user);
     }
 
@@ -154,7 +160,7 @@ public abstract class BaseActivity extends AppCompatActivity implements Injectab
      * @return Capabilities of the server where the current OC account lives. Null if the account is not
      * set yet.
      */
-    public OCCapability getCapabilities() {
+    public Optional<OCCapability> getCapabilities() {
         return sessionMixin.getCapabilities();
     }
 
@@ -174,6 +180,11 @@ public abstract class BaseActivity extends AppCompatActivity implements Injectab
     }
 
     public FileDataStorageManager getStorageManager() {
-        return sessionMixin.getStorageManager();
+        return fileDataStorageManager;
     }
+
+    public ClientRepository getClientRepository() {
+        return clientRepository;
+    }
+
 }

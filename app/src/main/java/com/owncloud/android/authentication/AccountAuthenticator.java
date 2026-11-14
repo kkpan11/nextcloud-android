@@ -6,7 +6,7 @@
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2012 David A. Velasco <dvelasco@solidgear.es>
  * SPDX-FileCopyrightText: 2011-2012 Bartosz Przybylski <bart.p.pl@gmail.com>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.authentication;
 
@@ -21,6 +21,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.widget.Toast;
 
+import com.nextcloud.utils.mdm.MDMConfig;
 import com.owncloud.android.MainApp;
 import com.owncloud.android.R;
 import com.owncloud.android.lib.common.accounts.AccountTypeUtils;
@@ -70,7 +71,7 @@ public class AccountAuthenticator extends AbstractAccountAuthenticator {
 
         final Bundle bundle = new Bundle();
 
-        if (mContext.getResources().getBoolean(R.bool.multiaccount_support) || accounts.length < 1) {
+        if (accounts.length < 1 || MDMConfig.INSTANCE.multiAccountSupport(mContext)) {
             try {
                 validateAccountType(accountType);
             } catch (AuthenticatorException e) {

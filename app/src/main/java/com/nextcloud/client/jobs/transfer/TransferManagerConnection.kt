@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs.transfer
 
@@ -16,10 +16,9 @@ import com.nextcloud.client.files.Request
 import com.owncloud.android.datamodel.OCFile
 import java.util.UUID
 
-class TransferManagerConnection(
-    context: Context,
-    val user: User
-) : LocalConnection<FileTransferService>(context), TransferManager {
+class TransferManagerConnection(context: Context, val user: User) :
+    LocalConnection<FileTransferService>(context),
+    TransferManager {
 
     private var transferListeners: MutableSet<(Transfer) -> Unit> = mutableSetOf()
     private var statusListeners: MutableSet<(TransferManager.Status) -> Unit> = mutableSetOf()
@@ -64,9 +63,7 @@ class TransferManagerConnection(
         binder?.removeStatusListener(listener)
     }
 
-    override fun createBindIntent(): Intent {
-        return FileTransferService.createBindIntent(context, user)
-    }
+    override fun createBindIntent(): Intent = FileTransferService.createBindIntent(context, user)
 
     override fun onBound(binder: IBinder) {
         super.onBound(binder)

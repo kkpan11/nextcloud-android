@@ -3,7 +3,7 @@
   ~ Nextcloud - Android Client
   ~
   ~ SPDX-FileCopyrightText: 2019 Andy Scherzinger <info@andy-scherzinger>
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -15,6 +15,6 @@
     android:gravity="center|start"
     android:paddingBottom="@dimen/standard_half_padding"
     android:text="@string/menu_item_sort_by_name_z_a"
-    app:icon="@drawable/ic_user"
+    app:icon="@drawable/ic_user_outline"
     app:iconPadding="@dimen/standard_padding"
-    tools:text="DCIM" />
+    tools:text="@string/placeholder_file_path" />

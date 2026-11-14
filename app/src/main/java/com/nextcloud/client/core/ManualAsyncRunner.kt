@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.core
 
@@ -20,14 +20,12 @@ class ManualAsyncRunner : AsyncRunner {
         task: () -> T,
         onResult: OnResultCallback<T>?,
         onError: OnErrorCallback?
-    ): Cancellable {
-        return postTask(
-            task = { _: OnProgressCallback<Any>, _: IsCancelled -> task.invoke() },
-            onResult = onResult,
-            onError = onError,
-            onProgress = null
-        )
-    }
+    ): Cancellable = postTask(
+        task = { _: OnProgressCallback<Any>, _: IsCancelled -> task.invoke() },
+        onResult = onResult,
+        onError = onError,
+        onProgress = null
+    )
 
     override fun <T, P> postTask(
         task: TaskFunction<T, P>,

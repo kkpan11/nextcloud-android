@@ -7,7 +7,7 @@
 
 # SPDX-FileCopyrightText: 2017 Torsten Grote
 # SPDX-FileCopyrightText: 2017-2018 Tobias Kaminsky <tobias@kaminsky.me>
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 
 import codecs
 import os
@@ -15,8 +15,8 @@ import shutil
 from xml.etree import ElementTree
 
 XML_PATH = '../../app/src/main/res'
-METADATA_PATH = '../../src/generic/fastlane/metadata/android/'
-METADATA_DEV_PATH = '../../src/versionDev/fastlane/metadata/android/'
+METADATA_PATH = '../../src/generic/fastlane/metadata/'
+METADATA_DEV_PATH = '../../src/versionDev/fastlane/metadata/'
 DEFAULT_LANG = 'en-US'
 LANG_MAP = {
     'values': 'en-US',

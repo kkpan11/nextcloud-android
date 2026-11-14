@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2021 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.fragment.contactsbackup
 
@@ -12,10 +12,8 @@ import android.widget.ArrayAdapter
 import com.afollestad.sectionedrecyclerview.SectionedViewHolder
 import com.owncloud.android.databinding.BackupListItemHeaderBinding
 
-class BackupListHeaderViewHolder(
-    val binding: BackupListItemHeaderBinding,
-    val context: Context
-) : SectionedViewHolder(binding.root) {
+class BackupListHeaderViewHolder(val binding: BackupListItemHeaderBinding, val context: Context) :
+    SectionedViewHolder(binding.root) {
     val adapter = ArrayAdapter<ContactsAccount?>(
         context,
         android.R.layout.simple_spinner_dropdown_item,

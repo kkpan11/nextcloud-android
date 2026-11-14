@@ -1,12 +1,15 @@
 /*
  * Nextcloud - Android Client
  *
+ * SPDX-FileCopyrightText: 2024 TSI-mc <surinder.kumar@t-systems.com>
  * SPDX-FileCopyrightText: 2023 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.utils.extensions
 
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.text.Selection
 import android.text.Spannable
@@ -17,9 +20,18 @@ import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.view.View
 import android.widget.TextView
+import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.lib.resources.trashbin.model.TrashbinFile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.nextcloud.utils.AppConstants.ONE_SECOND
+
+fun mainThread(delay: Long = ONE_SECOND.inWholeMilliseconds, action: () -> Unit) {
+    Handler(Looper.getMainLooper()).postDelayed({
+        action()
+    }, delay)
+}
 
 fun clickWithDebounce(view: View, debounceTime: Long = 600L, action: () -> Unit) {
     view.setOnClickListener(object : View.OnClickListener {
@@ -78,4 +90,13 @@ fun Long.isCurrentYear(yearToCompare: String?): Boolean {
 fun Long.getFormattedStringDate(format: String): String {
     val simpleDateFormat = SimpleDateFormat(format, Locale.getDefault())
     return simpleDateFormat.format(Date(this))
+}
+
+fun TrashbinFile.toOCFile(): OCFile {
+    val ocFile = OCFile(this.remotePath)
+    ocFile.mimeType = this.mimeType
+    ocFile.fileLength = this.fileLength
+    ocFile.remoteId = this.remoteId
+    ocFile.fileName = this.fileName
+    return ocFile
 }

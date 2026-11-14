@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2023 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.database.migrations
 
@@ -20,7 +20,7 @@ import com.nextcloud.client.database.migrations.DatabaseMigrationUtil.TYPE_TEXT
  */
 @Suppress("MagicNumber")
 class Migration67to68 : Migration(67, 68) {
-    override fun migrate(database: SupportSQLiteDatabase) {
+    override fun migrate(db: SupportSQLiteDatabase) {
         val tableName = "filelist"
         val newTableTempName = "${tableName}_new"
         val newColumns = mapOf(
@@ -70,7 +70,7 @@ class Migration67to68 : Migration(67, 68) {
             "lock_token" to TYPE_TEXT
         )
 
-        DatabaseMigrationUtil.migrateTable(database, "filelist", newColumns) { columnName ->
+        DatabaseMigrationUtil.migrateTable(db, "filelist", newColumns) { columnName ->
             when (columnName) {
                 "local_id" -> "IFNULL(local_id, -1)"
                 else -> columnName

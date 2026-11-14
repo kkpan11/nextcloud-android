@@ -6,7 +6,7 @@
  * SPDX-FileCopyrightText: 2020 Daniel Kesselberg <mail@danielkesselberg.de>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2015 María Asensio Valverde <masensio@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.operations;
 
@@ -36,12 +36,11 @@ public class GetCapabilitiesOperation extends SyncOperation {
             currentCapability = storageManager.getCapability(storageManager.getUser().getAccountName());
         }
 
-        RemoteOperationResult result = new GetCapabilitiesRemoteOperation(currentCapability).execute(client);
+        RemoteOperationResult<OCCapability> result = new GetCapabilitiesRemoteOperation(currentCapability).execute(client);
 
-        if (result.isSuccess()
-                && result.getData() != null && result.getData().size() > 0) {
+        if (result.isSuccess() && result.getResultData() != null) {
             // Read data from the result
-            OCCapability capability = (OCCapability) result.getData().get(0);
+            OCCapability capability = result.getResultData();
 
             // Save the capabilities into database
             storageManager.saveCapabilities(capability);

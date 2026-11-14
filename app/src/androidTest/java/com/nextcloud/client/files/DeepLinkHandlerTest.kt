@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.files
 
@@ -37,8 +37,8 @@ class DeepLinkHandlerTest {
     class DeepLinkPattern {
 
         companion object {
-            val FILE_ID = 1234
-            val SERVER_BASE_URLS = listOf(
+            private const val FILE_ID = 1234
+            private val SERVER_BASE_URLS = listOf(
                 "http://hostname.net",
                 "https://hostname.net",
                 "http://hostname.net/subdir1",
@@ -48,7 +48,7 @@ class DeepLinkHandlerTest {
                 "http://hostname.net/subdir1/subdir2/subdir3",
                 "https://hostname.net/subdir1/subdir2/subdir3"
             )
-            val INDEX_PHP_PATH = listOf(
+            private val INDEX_PHP_PATH = listOf(
                 "",
                 "/index.php"
             )
@@ -102,12 +102,12 @@ class DeepLinkHandlerTest {
             const val OTHER_SERVER_BASE_URL = "https://someotherserver.net"
             const val SERVER_BASE_URL = "https://server.net"
             const val FILE_ID = "1234567890"
-            val DEEP_LINK = Uri.parse("$SERVER_BASE_URL/index.php/f/$FILE_ID")
+            val DEEP_LINK: Uri = Uri.parse("$SERVER_BASE_URL/index.php/f/$FILE_ID")
 
             fun createMockUser(serverBaseUrl: String): User {
                 val user = mock<User>()
                 val uri = URI.create(serverBaseUrl)
-                val server = Server(uri = uri, version = OwnCloudVersion.nextcloud_19)
+                val server = Server(uri = uri, version = OwnCloudVersion.nextcloud_20)
                 whenever(user.server).thenReturn(server)
                 return user
             }
@@ -115,8 +115,8 @@ class DeepLinkHandlerTest {
 
         @Mock
         lateinit var userAccountManager: UserAccountManager
-        lateinit var allUsers: List<User>
-        lateinit var handler: DeepLinkHandler
+        private lateinit var allUsers: List<User>
+        private lateinit var handler: DeepLinkHandler
 
         @Before
         fun setUp() {

@@ -2,7 +2,8 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-FileCopyrightText: 2026 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
@@ -17,19 +18,30 @@ import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.core.Clock
-import com.nextcloud.client.device.DeviceInfo
+import com.nextcloud.client.database.NextcloudDatabase
 import com.nextcloud.client.device.PowerManagementService
 import com.nextcloud.client.documentscan.GeneratePDFUseCase
 import com.nextcloud.client.documentscan.GeneratePdfFromImagesWork
 import com.nextcloud.client.integrations.deck.DeckApi
+import com.nextcloud.client.jobs.autoUpload.AutoUploadHelper
+import com.nextcloud.client.jobs.autoUpload.AutoUploadLocalDeletionWorker
+import com.nextcloud.client.jobs.autoUpload.AutoUploadRescanWorker
+import com.nextcloud.client.jobs.autoUpload.AutoUploadWorker
+import com.nextcloud.client.jobs.autoUpload.FileSystemRepository
 import com.nextcloud.client.jobs.download.FileDownloadWorker
+import com.nextcloud.client.jobs.folderDownload.FolderDownloadWorker
+import com.nextcloud.client.jobs.metadata.MetadataWorker
+import com.nextcloud.client.jobs.offlineOperations.OfflineOperationsWorker
+import com.nextcloud.client.jobs.upload.AlbumFileUploadWorker
 import com.nextcloud.client.jobs.upload.FileUploadWorker
 import com.nextcloud.client.logger.Logger
 import com.nextcloud.client.network.ConnectivityService
 import com.nextcloud.client.preferences.AppPreferences
+import com.nextcloud.repository.ClientRepository
 import com.owncloud.android.datamodel.ArbitraryDataProvider
 import com.owncloud.android.datamodel.SyncedFolderProvider
 import com.owncloud.android.datamodel.UploadsStorageManager
+import com.owncloud.android.operations.factory.UploadFileOperationFactory
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import org.greenrobot.eventbus.EventBus
 import javax.inject.Inject
@@ -40,7 +52,6 @@ import javax.inject.Provider
  *
  * This class is doing too many things and should be split up into smaller factories.
  */
-@Suppress("LongParameterList", "TooManyFunctions") // satisfied by DI
 class BackgroundJobFactory @Inject constructor(
     private val logger: Logger,
     private val preferences: AppPreferences,
@@ -48,7 +59,6 @@ class BackgroundJobFactory @Inject constructor(
     private val clock: Clock,
     private val powerManagementService: PowerManagementService,
     private val backgroundJobManager: Provider<BackgroundJobManager>,
-    private val deviceInfo: DeviceInfo,
     private val accountManager: UserAccountManager,
     private val resources: Resources,
     private val arbitraryDataProvider: ArbitraryDataProvider,
@@ -60,11 +70,14 @@ class BackgroundJobFactory @Inject constructor(
     private val viewThemeUtils: Provider<ViewThemeUtils>,
     private val localBroadcastManager: Provider<LocalBroadcastManager>,
     private val generatePdfUseCase: GeneratePDFUseCase,
-    private val syncedFolderProvider: SyncedFolderProvider
+    private val syncedFolderProvider: SyncedFolderProvider,
+    private val database: NextcloudDatabase,
+    private val uploadFileOperationFactory: UploadFileOperationFactory,
+    private val clientRepository: ClientRepository
 ) : WorkerFactory() {
 
     @SuppressLint("NewApi")
-    @Suppress("ComplexMethod") // it's just a trivial dispatch
+    @Suppress("CyclomaticComplexMethod") // it's just a trivial dispatch
     override fun createWorker(
         context: Context,
         workerClassName: String,
@@ -82,7 +95,8 @@ class BackgroundJobFactory @Inject constructor(
             when (workerClass) {
                 ContactsBackupWork::class -> createContactsBackupWork(context, workerParameters)
                 ContactsImportWork::class -> createContactsImportWork(context, workerParameters)
-                FilesSyncWork::class -> createFilesSyncWork(context, workerParameters)
+                AutoUploadWorker::class -> createAutoUploadWorker(context, workerParameters)
+                AutoUploadRescanWorker::class -> createAutoUploadRescanWorker(context, workerParameters)
                 OfflineSyncWork::class -> createOfflineSyncWork(context, workerParameters)
                 MediaFoldersDetectionWork::class -> createMediaFoldersDetectionWork(context, workerParameters)
                 NotificationWork::class -> createNotificationWork(context, workerParameters)
@@ -91,43 +105,53 @@ class BackgroundJobFactory @Inject constructor(
                 CalendarImportWork::class -> createCalendarImportWork(context, workerParameters)
                 FilesExportWork::class -> createFilesExportWork(context, workerParameters)
                 FileUploadWorker::class -> createFilesUploadWorker(context, workerParameters)
+                AlbumFileUploadWorker::class -> createAlbumsFilesUploadWorker(context, workerParameters)
                 FileDownloadWorker::class -> createFilesDownloadWorker(context, workerParameters)
                 GeneratePdfFromImagesWork::class -> createPDFGenerateWork(context, workerParameters)
                 HealthStatusWork::class -> createHealthStatusWork(context, workerParameters)
                 TestJob::class -> createTestJob(context, workerParameters)
+                OfflineOperationsWorker::class -> createOfflineOperationsWorker(context, workerParameters)
+                InternalTwoWaySyncWork::class -> createInternalTwoWaySyncWork(context, workerParameters)
+                MetadataWorker::class -> createMetadataWorker(context, workerParameters)
+                FolderDownloadWorker::class -> createFolderDownloadWorker(context, workerParameters)
+                AutoUploadLocalDeletionWorker::class -> createAutoUploadLocalDeletionWorker(context, workerParameters)
                 else -> null // caller falls back to default factory
             }
         }
     }
 
-    private fun createFilesExportWork(
-        context: Context,
-        params: WorkerParameters
-    ): ListenableWorker {
-        return FilesExportWork(
-            context,
+    private fun createOfflineOperationsWorker(context: Context, params: WorkerParameters): ListenableWorker =
+        OfflineOperationsWorker(
             accountManager.user,
-            contentResolver,
+            context,
+            connectivityService,
+            clientRepository,
             viewThemeUtils.get(),
             params
         )
-    }
 
-    private fun createContentObserverJob(
-        context: Context,
-        workerParameters: WorkerParameters
-    ): ListenableWorker {
-        return ContentObserverWork(
+    private fun createFilesExportWork(context: Context, params: WorkerParameters): ListenableWorker = FilesExportWork(
+        context,
+        accountManager.user,
+        contentResolver,
+        viewThemeUtils.get(),
+        params
+    )
+
+    private fun createContentObserverJob(context: Context, workerParameters: WorkerParameters): ListenableWorker =
+        ContentObserverWork(
             context,
             workerParameters,
             SyncedFolderProvider(contentResolver, preferences, clock),
             powerManagementService,
-            backgroundJobManager.get()
+            backgroundJobManager.get(),
+            AutoUploadHelper(
+                FileSystemRepository(dao = database.fileSystemDao(), uploadsStorageManager, context)
+            )
         )
-    }
 
-    private fun createContactsBackupWork(context: Context, params: WorkerParameters): ContactsBackupWork {
-        return ContactsBackupWork(
+    private fun createContactsBackupWork(context: Context, params: WorkerParameters): ContactsBackupWork =
+        ContactsBackupWork(
             context,
             params,
             resources,
@@ -135,63 +159,68 @@ class BackgroundJobFactory @Inject constructor(
             contentResolver,
             accountManager
         )
-    }
 
-    private fun createContactsImportWork(context: Context, params: WorkerParameters): ContactsImportWork {
-        return ContactsImportWork(
+    private fun createContactsImportWork(context: Context, params: WorkerParameters): ContactsImportWork =
+        ContactsImportWork(
             context,
             params,
             logger,
             contentResolver
         )
-    }
 
-    private fun createCalendarBackupWork(context: Context, params: WorkerParameters): CalendarBackupWork {
-        return CalendarBackupWork(
+    private fun createCalendarBackupWork(context: Context, params: WorkerParameters): CalendarBackupWork =
+        CalendarBackupWork(
             context,
             params,
             contentResolver,
             accountManager,
             preferences
         )
-    }
 
-    private fun createCalendarImportWork(context: Context, params: WorkerParameters): CalendarImportWork {
-        return CalendarImportWork(
+    private fun createCalendarImportWork(context: Context, params: WorkerParameters): CalendarImportWork =
+        CalendarImportWork(
             context,
             params,
             logger,
             contentResolver
         )
-    }
 
-    private fun createFilesSyncWork(context: Context, params: WorkerParameters): FilesSyncWork {
-        return FilesSyncWork(
+    private fun createAutoUploadWorker(context: Context, params: WorkerParameters): AutoUploadWorker = AutoUploadWorker(
+        context = context,
+        params = params,
+        userAccountManager = accountManager,
+        uploadsStorageManager = uploadsStorageManager,
+        connectivityService = connectivityService,
+        powerManagementService = powerManagementService,
+        syncedFolderProvider = syncedFolderProvider,
+        repository = FileSystemRepository(dao = database.fileSystemDao(), uploadsStorageManager, context),
+        viewThemeUtils = viewThemeUtils.get(),
+        localBroadcastManager = localBroadcastManager.get(),
+        autoUploadHelper = AutoUploadHelper(
+            FileSystemRepository(dao = database.fileSystemDao(), uploadsStorageManager, context)
+        ),
+        preferences = preferences
+    )
+
+    private fun createAutoUploadRescanWorker(context: Context, params: WorkerParameters): AutoUploadRescanWorker =
+        AutoUploadRescanWorker(
             context = context,
             params = params,
-            contentResolver = contentResolver,
-            userAccountManager = accountManager,
-            uploadsStorageManager = uploadsStorageManager,
-            connectivityService = connectivityService,
-            powerManagementService = powerManagementService,
             syncedFolderProvider = syncedFolderProvider,
             backgroundJobManager = backgroundJobManager.get()
         )
-    }
 
-    private fun createOfflineSyncWork(context: Context, params: WorkerParameters): OfflineSyncWork {
-        return OfflineSyncWork(
-            context = context,
-            params = params,
-            contentResolver = contentResolver,
-            userAccountManager = accountManager,
-            connectivityService = connectivityService,
-            powerManagementService = powerManagementService
-        )
-    }
+    private fun createOfflineSyncWork(context: Context, params: WorkerParameters): OfflineSyncWork = OfflineSyncWork(
+        context = context,
+        params = params,
+        contentResolver = contentResolver,
+        userAccountManager = accountManager,
+        connectivityService = connectivityService,
+        powerManagementService = powerManagementService
+    )
 
-    private fun createMediaFoldersDetectionWork(context: Context, params: WorkerParameters): MediaFoldersDetectionWork {
-        return MediaFoldersDetectionWork(
+    private fun createMediaFoldersDetectionWork(context: Context, params: WorkerParameters): MediaFoldersDetectionWork =
+        MediaFoldersDetectionWork(
             context,
             params,
             resources,
@@ -202,21 +231,18 @@ class BackgroundJobFactory @Inject constructor(
             viewThemeUtils.get(),
             syncedFolderProvider
         )
-    }
 
-    private fun createNotificationWork(context: Context, params: WorkerParameters): NotificationWork {
-        return NotificationWork(
-            context,
-            params,
-            notificationManager,
-            accountManager,
-            deckApi,
-            viewThemeUtils.get()
-        )
-    }
+    private fun createNotificationWork(context: Context, params: WorkerParameters): NotificationWork = NotificationWork(
+        context,
+        params,
+        notificationManager,
+        accountManager,
+        deckApi,
+        viewThemeUtils.get()
+    )
 
-    private fun createAccountRemovalWork(context: Context, params: WorkerParameters): AccountRemovalWork {
-        return AccountRemovalWork(
+    private fun createAccountRemovalWork(context: Context, params: WorkerParameters): AccountRemovalWork =
+        AccountRemovalWork(
             context,
             params,
             uploadsStorageManager,
@@ -227,10 +253,35 @@ class BackgroundJobFactory @Inject constructor(
             preferences,
             syncedFolderProvider
         )
-    }
 
-    private fun createFilesUploadWorker(context: Context, params: WorkerParameters): FileUploadWorker {
-        return FileUploadWorker(
+    private fun createFilesUploadWorker(context: Context, params: WorkerParameters): FileUploadWorker =
+        FileUploadWorker(
+            uploadsStorageManager,
+            connectivityService,
+            powerManagementService,
+            accountManager,
+            viewThemeUtils.get(),
+            localBroadcastManager.get(),
+            backgroundJobManager.get(),
+            preferences,
+            FileSystemRepository(dao = database.fileSystemDao(), uploadsStorageManager, context),
+            syncedFolderProvider,
+            context,
+            uploadFileOperationFactory,
+            params
+        )
+
+    private fun createFilesDownloadWorker(context: Context, params: WorkerParameters): FileDownloadWorker =
+        FileDownloadWorker(
+            viewThemeUtils.get(),
+            accountManager,
+            localBroadcastManager.get(),
+            context,
+            params
+        )
+
+    private fun createAlbumsFilesUploadWorker(context: Context, params: WorkerParameters): AlbumFileUploadWorker =
+        AlbumFileUploadWorker(
             uploadsStorageManager,
             connectivityService,
             powerManagementService,
@@ -242,20 +293,9 @@ class BackgroundJobFactory @Inject constructor(
             context,
             params
         )
-    }
 
-    private fun createFilesDownloadWorker(context: Context, params: WorkerParameters): FileDownloadWorker {
-        return FileDownloadWorker(
-            viewThemeUtils.get(),
-            accountManager,
-            localBroadcastManager.get(),
-            context,
-            params
-        )
-    }
-
-    private fun createPDFGenerateWork(context: Context, params: WorkerParameters): GeneratePdfFromImagesWork {
-        return GeneratePdfFromImagesWork(
+    private fun createPDFGenerateWork(context: Context, params: WorkerParameters): GeneratePdfFromImagesWork =
+        GeneratePdfFromImagesWork(
             appContext = context,
             generatePdfUseCase = generatePdfUseCase,
             viewThemeUtils = viewThemeUtils.get(),
@@ -264,23 +304,53 @@ class BackgroundJobFactory @Inject constructor(
             logger = logger,
             params = params
         )
-    }
 
-    private fun createHealthStatusWork(context: Context, params: WorkerParameters): HealthStatusWork {
-        return HealthStatusWork(
+    private fun createHealthStatusWork(context: Context, params: WorkerParameters): HealthStatusWork = HealthStatusWork(
+        context,
+        params,
+        accountManager,
+        arbitraryDataProvider,
+        backgroundJobManager.get()
+    )
+
+    private fun createTestJob(context: Context, params: WorkerParameters): TestJob = TestJob(
+        context,
+        params,
+        backgroundJobManager.get()
+    )
+
+    private fun createInternalTwoWaySyncWork(context: Context, params: WorkerParameters): InternalTwoWaySyncWork =
+        InternalTwoWaySyncWork(
             context,
             params,
             accountManager,
-            arbitraryDataProvider,
-            backgroundJobManager.get()
+            powerManagementService,
+            connectivityService,
+            preferences
         )
-    }
 
-    private fun createTestJob(context: Context, params: WorkerParameters): TestJob {
-        return TestJob(
+    private fun createMetadataWorker(context: Context, params: WorkerParameters): MetadataWorker = MetadataWorker(
+        context,
+        params,
+        accountManager.user
+    )
+
+    private fun createFolderDownloadWorker(context: Context, params: WorkerParameters): FolderDownloadWorker =
+        FolderDownloadWorker(
+            accountManager,
             context,
-            params,
-            backgroundJobManager.get()
+            viewThemeUtils.get(),
+            params
         )
-    }
+
+    private fun createAutoUploadLocalDeletionWorker(
+        context: Context,
+        params: WorkerParameters
+    ): AutoUploadLocalDeletionWorker = AutoUploadLocalDeletionWorker(
+        context = context,
+        params = params,
+        userAccountManager = accountManager,
+        syncedFolderProvider = syncedFolderProvider,
+        viewThemeUtils = viewThemeUtils.get()
+    )
 }

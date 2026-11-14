@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2019 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account
 
@@ -41,21 +41,22 @@ internal data class RegisteredUser(
         return account.name
     }
 
-    override fun toPlatformAccount(): Account {
-        return account
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy Android Account access. Refactor code to use User object " +
+            "directly instead of platform Account."
+    )
+    override fun toPlatformAccount(): Account = account
 
-    override fun toOwnCloudAccount(): OwnCloudAccount {
-        return ownCloudAccount
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy OwnCloudAccount access. Refactor code to use User object " +
+            "directly instead of OwnCloudAccount."
+    )
+    override fun toOwnCloudAccount(): OwnCloudAccount = ownCloudAccount
 
-    override fun nameEquals(user: User?): Boolean {
-        return nameEquals(user?.accountName)
-    }
+    override fun nameEquals(user: User?): Boolean = nameEquals(user?.accountName)
 
-    override fun nameEquals(accountName: CharSequence?): Boolean {
-        return accountName?.toString().equals(this.accountName, true)
-    }
+    override fun nameEquals(accountName: CharSequence?): Boolean =
+        accountName?.toString().equals(this.accountName, true)
 
     override fun describeContents() = 0
 

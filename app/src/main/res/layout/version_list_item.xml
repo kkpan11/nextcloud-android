@@ -4,7 +4,7 @@
   ~
   ~ SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
   ~ SPDX-FileCopyrightText: 2018 Nextcloud GmbH
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -33,7 +33,7 @@
 
         <TextView
             android:id="@+id/version_created"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:text="@string/new_version_was_created"
@@ -41,11 +41,11 @@
 
         <TextView
             android:id="@+id/size"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="0dp"
             android:layout_weight="1"
             android:ellipsize="end"
-            tools:text="256 KB"
+            tools:text="@string/placeholder_fileSize"
             android:textColor="?android:attr/textColorSecondary"/>
     </LinearLayout>
 
@@ -67,7 +67,7 @@
         android:layout_weight="1"
         android:ellipsize="end"
         android:textAlignment="textEnd"
-        tools:text="13:24"
+        tools:text="@string/placeholder_media_time"
         android:textColor="?android:attr/textColorSecondary"/>
 
 </LinearLayout>

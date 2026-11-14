@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2017 Sven R. Kunze <srkunze@mail.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils
 
@@ -20,12 +20,16 @@ class FileSortOrderByDate(name: String, ascending: Boolean) : FileSortOrder(name
      *
      * @param files list of files to sort
      */
-    override fun sortCloudFiles(files: MutableList<OCFile>): List<OCFile> {
+    override fun sortCloudFiles(
+        files: MutableList<OCFile>,
+        foldersBeforeFiles: Boolean,
+        favoritesFirst: Boolean
+    ): MutableList<OCFile> {
         val multiplier = if (isAscending) 1 else -1
         files.sortWith { o1: OCFile, o2: OCFile ->
             multiplier * o1.modificationTimestamp.compareTo(o2.modificationTimestamp)
         }
-        return super.sortCloudFiles(files)
+        return super.sortCloudFiles(files, foldersBeforeFiles, favoritesFirst)
     }
 
     /**

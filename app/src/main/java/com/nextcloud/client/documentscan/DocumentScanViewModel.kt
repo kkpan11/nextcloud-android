@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.documentscan
 
@@ -18,6 +18,7 @@ import com.nextcloud.client.jobs.BackgroundJobManager
 import com.nextcloud.client.jobs.upload.FileUploadHelper
 import com.nextcloud.client.jobs.upload.FileUploadWorker
 import com.nextcloud.client.logger.Logger
+import com.nextcloud.model.OCUploadLocalPathData
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.files.services.NameCollisionPolicy
 import com.owncloud.android.operations.UploadFileOperation
@@ -28,7 +29,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 
-@Suppress("Detekt.LongParameterList") // satisfied by DI
 class DocumentScanViewModel @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     app: Application,
@@ -46,15 +46,11 @@ class DocumentScanViewModel @Inject constructor(
                 get() = pageList.isEmpty()
         }
 
-        class NormalState(
-            pageList: List<String> = emptyList(),
-            val shouldRequestScan: Boolean = false
-        ) : BaseState(pageList)
+        class NormalState(pageList: List<String> = emptyList(), val shouldRequestScan: Boolean = false) :
+            BaseState(pageList)
 
-        class RequestExportState(
-            pageList: List<String> = emptyList(),
-            val shouldRequestExportType: Boolean = true
-        ) : BaseState(pageList)
+        class RequestExportState(pageList: List<String> = emptyList(), val shouldRequestExportType: Boolean = true) :
+            BaseState(pageList)
 
         object DoneState : UIState
         object CanceledState : UIState
@@ -142,6 +138,7 @@ class DocumentScanViewModel @Inject constructor(
             ExportType.PDF -> {
                 exportToPdf(state.pageList)
             }
+
             ExportType.IMAGES -> {
                 exportToImages(state.pageList)
             }
@@ -169,17 +166,8 @@ class DocumentScanViewModel @Inject constructor(
             uploadFolder + OCFile.PATH_SEPARATOR + File(it).name
         }.toTypedArray()
 
-        FileUploadHelper.instance().uploadNewFiles(
-            currentAccountProvider.user,
-            pageList.toTypedArray(),
-            uploadPaths,
-            FileUploadWorker.LOCAL_BEHAVIOUR_DELETE,
-            true,
-            UploadFileOperation.CREATED_BY_USER,
-            false,
-            false,
-            NameCollisionPolicy.ASK_USER
-        )
+        val data = OCUploadLocalPathData.forDocument(currentAccountProvider.user, pageList.toTypedArray(), uploadPaths)
+        FileUploadHelper.instance().uploadNewFiles(data)
     }
 
     fun onExportCanceled() {

@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2016 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2016 Nextcloud
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils;
 
@@ -22,6 +22,7 @@ public final class MimeType {
     public static final String TEXT_PLAIN = "text/plain";
     public static final String FILE = "application/octet-stream";
     public static final String PDF = "application/pdf";
+    public static final String MP4 = "video/mp4";
 
     private MimeType() {
         // No instance

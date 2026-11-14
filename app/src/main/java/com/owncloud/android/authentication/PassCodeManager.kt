@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2022-2023 Álvaro Brey <alvaro@alvarobrey.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.authentication
 
@@ -17,13 +17,13 @@ import androidx.annotation.VisibleForTesting
 import com.nextcloud.client.core.Clock
 import com.nextcloud.client.preferences.AppPreferences
 import com.owncloud.android.MainApp
+import com.owncloud.android.authentication.PassCodeManager.Companion.PASS_CODE_TIMEOUT
 import com.owncloud.android.ui.activity.PassCodeActivity
 import com.owncloud.android.ui.activity.RequestCredentialsActivity
 import com.owncloud.android.ui.activity.SettingsActivity
 import com.owncloud.android.utils.DeviceCredentialUtils
 import kotlin.math.abs
 
-@Suppress("TooManyFunctions")
 class PassCodeManager(private val preferences: AppPreferences, private val clock: Clock) {
     companion object {
         private val exemptOfPasscodeActivities = setOf(
@@ -37,19 +37,28 @@ class PassCodeManager(private val preferences: AppPreferences, private val clock
          * the pass code being requested on screen rotations.
          */
         private const val PASS_CODE_TIMEOUT = 5000
+
+        fun setSecureFlag(activity: Activity, isSet: Boolean) {
+            activity.window?.let { window ->
+                if (isSet) {
+                    println("flag added")
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    println("flag cleared")
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+        }
     }
 
     var canAskPin = true
     private var askPinWhenDeviceLocked = false
 
-    private fun isExemptActivity(activity: Activity): Boolean {
-        return exemptOfPasscodeActivities.contains(activity.javaClass)
-    }
+    private fun isExemptActivity(activity: Activity): Boolean = exemptOfPasscodeActivities.contains(activity.javaClass)
 
     fun onActivityResumed(activity: Activity): Boolean {
         var askedForPin = false
         val timestamp = preferences.lockTimestamp
-        setSecureFlag(activity)
 
         if (!isExemptActivity(activity)) {
             val passcodeRequested = passCodeShouldBeRequested(timestamp)
@@ -68,7 +77,7 @@ class PassCodeManager(private val preferences: AppPreferences, private val clock
             }
         }
 
-        if (!askedForPin && preferences.lockTimestamp != 0L || askPinWhenDeviceLocked) {
+        if ((!askedForPin && preferences.lockTimestamp != 0L) || askPinWhenDeviceLocked) {
             updateLockTimestamp()
             askPinWhenDeviceLocked = false
         }
@@ -76,14 +85,17 @@ class PassCodeManager(private val preferences: AppPreferences, private val clock
         return askedForPin
     }
 
-    private fun setSecureFlag(activity: Activity) {
-        activity.window?.let { window ->
-            if (isPassCodeEnabled() || deviceCredentialsAreEnabled(activity)) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            } else {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            }
+    fun isLocked(activity: Activity): Boolean {
+        var askedForPin = false
+        val timestamp = preferences.lockTimestamp
+
+        if (!isExemptActivity(activity)) {
+            val passcodeRequested = passCodeShouldBeRequested(timestamp)
+            val credentialsRequested = deviceCredentialsShouldBeRequested(timestamp, activity)
+            askedForPin = passcodeRequested || credentialsRequested
         }
+
+        return askedForPin
     }
 
     private fun requestPasscode(activity: Activity) {
@@ -116,28 +128,21 @@ class PassCodeManager(private val preferences: AppPreferences, private val clock
     /**
      * `true` if the time elapsed since last unlock is longer than [PASS_CODE_TIMEOUT] and no activities are visible
      */
-    private fun shouldBeLocked(timestamp: Long): Boolean {
-        return (abs(clock.millisSinceBoot - timestamp) > PASS_CODE_TIMEOUT && canAskPin) || askPinWhenDeviceLocked
-    }
+    private fun shouldBeLocked(timestamp: Long): Boolean =
+        (abs(clock.millisSinceBoot - timestamp) > PASS_CODE_TIMEOUT && canAskPin) || askPinWhenDeviceLocked
 
     @VisibleForTesting
-    fun passCodeShouldBeRequested(timestamp: Long): Boolean {
-        return shouldBeLocked(timestamp) && isPassCodeEnabled()
-    }
+    fun passCodeShouldBeRequested(timestamp: Long): Boolean = shouldBeLocked(timestamp) && isPassCodeEnabled()
 
-    private fun isPassCodeEnabled(): Boolean = SettingsActivity.LOCK_PASSCODE == preferences.lockPreference
+    fun isPassCodeEnabled(): Boolean = SettingsActivity.LOCK_PASSCODE == preferences.lockPreference
 
-    private fun deviceCredentialsShouldBeRequested(timestamp: Long, activity: Activity): Boolean {
-        return shouldBeLocked(timestamp) && deviceCredentialsAreEnabled(activity)
-    }
+    private fun deviceCredentialsShouldBeRequested(timestamp: Long, activity: Activity): Boolean =
+        shouldBeLocked(timestamp) && deviceCredentialsAreEnabled(activity)
 
-    private fun deviceCredentialsAreEnabled(activity: Activity): Boolean {
-        return SettingsActivity.LOCK_DEVICE_CREDENTIALS == preferences.lockPreference ||
-            (preferences.isFingerprintUnlockEnabled && DeviceCredentialUtils.areCredentialsAvailable(activity))
-    }
+    private fun deviceCredentialsAreEnabled(activity: Activity): Boolean =
+        (preferences.lockPreference == SettingsActivity.LOCK_DEVICE_CREDENTIALS) &&
+            DeviceCredentialUtils.areCredentialsAvailable(activity)
 
-    private fun getActivityRootView(activity: Activity): View? {
-        return activity.window?.findViewById(android.R.id.content)
-            ?: activity.window?.decorView?.findViewById(android.R.id.content)
-    }
+    private fun getActivityRootView(activity: Activity): View? = activity.window?.findViewById(android.R.id.content)
+        ?: activity.window?.decorView?.findViewById(android.R.id.content)
 }

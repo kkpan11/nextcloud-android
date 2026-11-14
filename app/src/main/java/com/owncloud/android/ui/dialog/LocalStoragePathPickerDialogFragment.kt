@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Andy Scherzinger <info@andy-scherzinger.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.dialog
 
@@ -13,7 +13,6 @@ import android.os.Environment
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nextcloud.client.di.Injectable
 import com.owncloud.android.R
@@ -21,8 +20,9 @@ import com.owncloud.android.databinding.StoragePathDialogBinding
 import com.owncloud.android.ui.adapter.StoragePathAdapter
 import com.owncloud.android.ui.adapter.StoragePathAdapter.StoragePathAdapterListener
 import com.owncloud.android.ui.adapter.StoragePathItem
+import com.owncloud.android.ui.dialog.extensions.themeButtons
 import com.owncloud.android.utils.FileStorageUtils
-import com.owncloud.android.utils.FileStorageUtils.StandardDirectory
+import com.owncloud.android.utils.StandardDirectory
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import java.io.File
 import javax.inject.Inject
@@ -40,13 +40,7 @@ class LocalStoragePathPickerDialogFragment :
 
     override fun onStart() {
         super.onStart()
-
-        val alertDialog = dialog as AlertDialog?
-
-        val positiveButton = alertDialog?.getButton(AlertDialog.BUTTON_POSITIVE) as MaterialButton?
-        positiveButton?.let {
-            viewThemeUtils.material.colorMaterialButtonPrimaryTonal(positiveButton)
-        }
+        dialog?.themeButtons(viewThemeUtils)
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -128,8 +122,6 @@ class LocalStoragePathPickerDialogFragment :
         }
 
         @JvmStatic
-        fun newInstance(): LocalStoragePathPickerDialogFragment {
-            return LocalStoragePathPickerDialogFragment()
-        }
+        fun newInstance(): LocalStoragePathPickerDialogFragment = LocalStoragePathPickerDialogFragment()
     }
 }

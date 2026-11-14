@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils
 
@@ -141,7 +141,6 @@ class FileStorageUtilsIT : AbstractIT() {
         assertEquals("Internal storage/", pathToUserFriendlyDisplay("/storage/emulated/0/"))
     }
 
-    private fun pathToUserFriendlyDisplay(path: String): String {
-        return pathToUserFriendlyDisplay(path, targetContext, targetContext.resources)
-    }
+    private fun pathToUserFriendlyDisplay(path: String): String =
+        pathToUserFriendlyDisplay(path, targetContext, targetContext.resources)
 }

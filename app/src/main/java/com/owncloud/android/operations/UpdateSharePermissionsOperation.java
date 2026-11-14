@@ -5,7 +5,7 @@
  * SPDX-FileCopyrightText: 2018 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2015 David A. Velasco <dvelasco@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.operations;
 
@@ -49,7 +49,7 @@ public class UpdateSharePermissionsOperation extends SyncOperation {
     @Override
     protected RemoteOperationResult run(OwnCloudClient client) {
 
-        OCShare share = getStorageManager().getShareById(shareId); // ShareType.USER | ShareType.GROUP
+        OCShare share = getStorageManager().getShareById(shareId); // ShareType.USER | ShareType.GROUP | ShareType.FEDERATED_GROUP
 
         if (share == null) {
             // TODO try to get remote share before failing?

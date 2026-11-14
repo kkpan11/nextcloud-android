@@ -3,18 +3,17 @@
  *
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.adapter
 
 import android.content.Context
 import androidx.recyclerview.widget.RecyclerView
+import com.nextcloud.utils.text.DisplayTextFormatter
 import com.owncloud.android.R
 import com.owncloud.android.databinding.PredefinedStatusBinding
 import com.owncloud.android.lib.resources.users.PredefinedStatus
-import com.owncloud.android.utils.DisplayUtils
-
-private const val ONE_SECOND_IN_MILLIS = 1000
+import com.nextcloud.utils.AppConstants.MILLIS_PER_SECOND
 
 class PredefinedStatusViewHolder(private val binding: PredefinedStatusBinding) : RecyclerView.ViewHolder(binding.root) {
 
@@ -28,9 +27,9 @@ class PredefinedStatusViewHolder(private val binding: PredefinedStatusBinding) :
         } else {
             val clearAt = status.clearAt!!
             if (clearAt.type.equals("period")) {
-                binding.clearAt.text = DisplayUtils.getRelativeTimestamp(
+                binding.clearAt.text = DisplayTextFormatter.formatRelativeTimestamp(
                     context,
-                    System.currentTimeMillis() + clearAt.time.toInt() * ONE_SECOND_IN_MILLIS,
+                    System.currentTimeMillis() + clearAt.time.toInt() * MILLIS_PER_SECOND,
                     true
                 )
             } else {

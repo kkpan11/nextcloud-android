@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2017 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2017 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 
 package com.owncloud.android.providers;
@@ -19,6 +19,7 @@ import android.provider.OpenableColumns;
 
 import com.nextcloud.client.account.User;
 import com.nextcloud.client.account.UserAccountManager;
+import com.nextcloud.utils.extensions.FileExtensionsKt;
 import com.owncloud.android.MainApp;
 import com.owncloud.android.datamodel.FileDataStorageManager;
 import com.owncloud.android.datamodel.OCFile;
@@ -29,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.nio.file.Files;
 
 import javax.inject.Inject;
 
@@ -61,13 +63,11 @@ public class DiskLruImageCacheFileProvider extends ContentProvider {
     }
 
     public static ParcelFileDescriptor getParcelFileDescriptorForOCFile(OCFile ocFile) throws FileNotFoundException {
-        Bitmap thumbnail = ThumbnailsCacheManager.getBitmapFromDiskCache(
-            ThumbnailsCacheManager.PREFIX_RESIZED_IMAGE + ocFile.getRemoteId());
+        Bitmap thumbnail = FileExtensionsKt.getBigThumbnail(ocFile);
 
         // fallback to thumbnail
         if (thumbnail == null) {
-            thumbnail = ThumbnailsCacheManager.getBitmapFromDiskCache(
-                ThumbnailsCacheManager.PREFIX_THUMBNAIL + ocFile.getRemoteId());
+            thumbnail = FileExtensionsKt.getSmallThumbnail(ocFile);
         }
 
         // fallback to default image
@@ -78,7 +78,7 @@ public class DiskLruImageCacheFileProvider extends ContentProvider {
         // create a file to write bitmap data
         File f = new File(MainApp.getAppContext().getCacheDir(), ocFile.getFileName());
         try {
-            f.createNewFile();
+            Files.createFile(f.toPath());
 
             //Convert bitmap to byte array
             ByteArrayOutputStream bos = new ByteArrayOutputStream();

@@ -5,7 +5,7 @@
  * SPDX-FileCopyrightText: 2021 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2018 Nextcloud GmbH
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.utils
 
@@ -42,7 +42,6 @@ object UriUtils {
         return displayName?.replace("/".toRegex(), "-")
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private fun getDisplayNameFromContentResolver(uri: Uri, context: Context): String? {
         val mimeType = context.contentResolver.getType(uri) ?: return null
         val displayNameColumn: String = getDisplayNameColumnForMimeType(mimeType)
@@ -71,12 +70,15 @@ object UriUtils {
         MimeTypeUtil.isImage(mimeType) -> {
             MediaStore.Images.ImageColumns.DISPLAY_NAME
         }
+
         MimeTypeUtil.isVideo(mimeType) -> {
             MediaStore.Video.VideoColumns.DISPLAY_NAME
         }
+
         MimeTypeUtil.isAudio(mimeType) -> {
             MediaStore.Audio.AudioColumns.DISPLAY_NAME
         }
+
         else -> {
             MediaStore.Files.FileColumns.DISPLAY_NAME
         }

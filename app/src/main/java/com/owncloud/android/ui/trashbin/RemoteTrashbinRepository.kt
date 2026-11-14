@@ -2,21 +2,23 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2023 TSI-mc
- * SPDX-FileCopyrightText: Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2018 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 @file:Suppress("DEPRECATION")
 
 package com.owncloud.android.ui.trashbin
 
 import android.os.AsyncTask
+import androidx.annotation.StringRes
 import com.nextcloud.client.account.User
 import com.nextcloud.client.network.ClientFactory
 import com.nextcloud.client.network.ClientFactory.CreationException
 import com.owncloud.android.R
+import com.owncloud.android.lib.common.operations.RemoteOperationResult.ResultCode
 import com.owncloud.android.lib.common.utils.Log_OC
 import com.owncloud.android.lib.resources.trashbin.EmptyTrashbinRemoteOperation
 import com.owncloud.android.lib.resources.trashbin.ReadTrashbinFolderRemoteOperation
@@ -41,16 +43,14 @@ class RemoteTrashbinRepository internal constructor(private val user: User, priv
     ) : AsyncTask<Void?, Void?, Boolean>() {
 
         @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg voids: Void?): Boolean {
-            return try {
-                val client = clientFactory.create(user)
-                val result = RemoveTrashbinFileRemoteOperation(file!!.fullRemotePath)
-                    .execute(client)
-                result.isSuccess
-            } catch (e: CreationException) {
-                Log_OC.e(this, "Cannot create client", e)
-                false
-            }
+        override fun doInBackground(vararg voids: Void?): Boolean = try {
+            val client = clientFactory.create(user)
+            val result = RemoveTrashbinFileRemoteOperation(file!!.fullRemotePath)
+                .execute(client)
+            result.isSuccess
+        } catch (e: CreationException) {
+            Log_OC.e(this, "Cannot create client", e)
+            false
         }
 
         @Deprecated("Deprecated in Java")
@@ -71,16 +71,14 @@ class RemoteTrashbinRepository internal constructor(private val user: User, priv
     ) : AsyncTask<Void?, Void?, Boolean>() {
 
         @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg voids: Void?): Boolean {
-            return try {
-                val client = clientFactory.createNextcloudClient(user)
-                val emptyTrashbinFileOperation = EmptyTrashbinRemoteOperation()
-                val result = emptyTrashbinFileOperation.execute(client)
-                result.isSuccess
-            } catch (e: CreationException) {
-                Log_OC.e(this, "Cannot create client", e)
-                false
-            }
+        override fun doInBackground(vararg voids: Void?): Boolean = try {
+            val client = clientFactory.createNextcloudClient(user)
+            val emptyTrashbinFileOperation = EmptyTrashbinRemoteOperation()
+            val result = emptyTrashbinFileOperation.execute(client)
+            result.isSuccess
+        } catch (e: CreationException) {
+            Log_OC.e(this, "Cannot create client", e)
+            false
         }
 
         @Deprecated("Deprecated in Java")
@@ -102,18 +100,16 @@ class RemoteTrashbinRepository internal constructor(private val user: User, priv
     ) : AsyncTask<Void?, Void?, Boolean>() {
 
         @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg voids: Void?): Boolean {
-            return try {
-                val client = clientFactory.create(user)
-                val result = RestoreTrashbinFileRemoteOperation(
-                    file!!.fullRemotePath,
-                    file.fileName
-                ).execute(client)
-                result.isSuccess
-            } catch (e: CreationException) {
-                Log_OC.e(this, "Cannot create client", e)
-                false
-            }
+        override fun doInBackground(vararg voids: Void?): Boolean = try {
+            val client = clientFactory.create(user)
+            val result = RestoreTrashbinFileRemoteOperation(
+                file!!.fullRemotePath,
+                file.fileName
+            ).execute(client)
+            result.isSuccess
+        } catch (e: CreationException) {
+            Log_OC.e(this, "Cannot create client", e)
+            false
         }
 
         @Deprecated("Deprecated in Java")
@@ -137,20 +133,24 @@ class RemoteTrashbinRepository internal constructor(private val user: User, priv
     ) : AsyncTask<Void?, Void?, Boolean>() {
         private var trashbinFiles: List<TrashbinFile?>? = null
 
+        @StringRes
+        private var errorMessage: Int = R.string.trashbin_loading_failed
+
         @Deprecated("Deprecated in Java")
-        override fun doInBackground(vararg voids: Void?): Boolean {
-            return try {
-                val client = clientFactory.create(user)
-                val result = ReadTrashbinFolderRemoteOperation(remotePath).execute(client)
-                if (result.isSuccess) {
-                    trashbinFiles = result.resultData
-                    true
-                } else {
-                    false
+        override fun doInBackground(vararg voids: Void?): Boolean = try {
+            val client = clientFactory.create(user)
+            val result = ReadTrashbinFolderRemoteOperation(remotePath).execute(client)
+            if (result.isSuccess) {
+                trashbinFiles = result.resultData
+                true
+            } else {
+                if (result.code == ResultCode.OUT_OF_MEMORY) {
+                    errorMessage = R.string.file_list_out_of_memory_description
                 }
-            } catch (e: CreationException) {
                 false
             }
+        } catch (e: CreationException) {
+            false
         }
 
         @Deprecated("Deprecated in Java")
@@ -160,7 +160,7 @@ class RemoteTrashbinRepository internal constructor(private val user: User, priv
             if (success) {
                 callback.onSuccess(trashbinFiles)
             } else {
-                callback.onError(R.string.trashbin_loading_failed)
+                callback.onError(errorMessage)
             }
         }
     }

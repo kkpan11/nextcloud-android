@@ -2,9 +2,9 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-FileCopyrightText: 2018 Tobias Kaminsky
+ * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2018 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.activity
 
@@ -17,8 +17,10 @@ import android.webkit.JavascriptInterface
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
 import com.nextcloud.client.account.CurrentAccountProvider
 import com.nextcloud.client.network.ClientFactory
+import com.nextcloud.utils.SnackbarUtil
 import com.nextcloud.utils.extensions.getParcelableArgument
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.OCFile
@@ -27,8 +29,8 @@ import com.owncloud.android.operations.RichDocumentsCreateAssetOperation
 import com.owncloud.android.ui.asynctasks.PrintAsyncTask
 import com.owncloud.android.ui.asynctasks.RichDocumentsLoadUrlTask
 import com.owncloud.android.ui.fragment.OCFileListFragment
-import com.owncloud.android.utils.DisplayUtils
 import com.owncloud.android.utils.FileStorageUtils
+import com.owncloud.android.utils.RichDocumentDownloadAsParser
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings
 import org.json.JSONException
 import org.json.JSONObject
@@ -99,7 +101,7 @@ class RichDocumentsEditorWebView : EditorWebView() {
                     )
                 }
             } else {
-                runOnUiThread { DisplayUtils.showSnackMessage(this, "Inserting image failed!") }
+                runOnUiThread { SnackbarUtil.show(this, "Inserting image failed!") }
             }
         }.start()
     }
@@ -126,7 +128,7 @@ class RichDocumentsEditorWebView : EditorWebView() {
     private fun printFile(url: Uri) {
         val account = accountManager.currentOwnCloudAccount
         if (account == null) {
-            DisplayUtils.showSnackMessage(webView, getString(R.string.failed_to_print))
+            SnackbarUtil.show(webView, getString(R.string.failed_to_print))
             return
         }
         val targetFile = File(FileStorageUtils.getTemporalPath(account.name) + "/print.pdf")
@@ -162,17 +164,12 @@ class RichDocumentsEditorWebView : EditorWebView() {
 
         @JavascriptInterface
         fun downloadAs(json: String?) {
-            try {
-                json ?: return
-                val downloadJson = JSONObject(json)
-                val url = Uri.parse(downloadJson.getString(URL))
-                when (downloadJson.getString(TYPE)) {
-                    PRINT -> printFile(url)
-                    SLIDESHOW -> showSlideShow(url)
-                    else -> downloadFile(url)
-                }
-            } catch (e: JSONException) {
-                Log_OC.e(this, "Failed to parse download json message: $e")
+            val result = RichDocumentDownloadAsParser.parse(json) ?: return
+            val url = result.url.toUri()
+            when (result.format) {
+                PRINT -> printFile(url)
+                SLIDESHOW -> showSlideShow(url)
+                else -> downloadFile(url, result.filename)
             }
         }
 
@@ -184,7 +181,7 @@ class RichDocumentsEditorWebView : EditorWebView() {
                 renameString ?: return
                 val renameJson = JSONObject(renameString)
                 val newName = renameJson.getString(NEW_NAME)
-                file.fileName = newName
+                file?.fileName = newName
             } catch (e: JSONException) {
                 Log_OC.e(this, "Failed to parse rename json message: $e")
             }
@@ -203,7 +200,7 @@ class RichDocumentsEditorWebView : EditorWebView() {
                 hyperlink ?: return
                 val url = JSONObject(hyperlink).getString(HYPERLINK)
                 val intent = Intent(Intent.ACTION_VIEW)
-                intent.data = Uri.parse(url)
+                intent.data = url.toUri()
                 startActivity(intent)
             } catch (e: JSONException) {
                 Log_OC.e(this, "Failed to parse download json message: $e")
@@ -212,9 +209,7 @@ class RichDocumentsEditorWebView : EditorWebView() {
     }
 
     companion object {
-        private const val URL = "URL"
         private const val HYPERLINK = "Url"
-        private const val TYPE = "Type"
         private const val PRINT = "print"
         private const val SLIDESHOW = "slideshow"
         private const val NEW_NAME = "NewName"

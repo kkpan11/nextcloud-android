@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.documentscan
 
@@ -24,19 +24,18 @@ import com.owncloud.android.R
 import com.owncloud.android.databinding.ActivityDocumentScanBinding
 import com.owncloud.android.databinding.DialogScanExportTypeBinding
 import com.owncloud.android.ui.activity.ToolbarActivity
-import com.owncloud.android.utils.theme.ViewThemeUtils
+import com.owncloud.android.ui.navigation.model.ActionBarStyle
 import javax.inject.Inject
 
-class DocumentScanActivity : ToolbarActivity(), Injectable {
+class DocumentScanActivity :
+    ToolbarActivity(),
+    Injectable {
 
     @Inject
     lateinit var vmFactory: ViewModelFactory
 
     @Inject
     lateinit var logger: Logger
-
-    @Inject
-    lateinit var viewThemeUtils: ViewThemeUtils
 
     @Inject
     lateinit var appScanOptionalFeature: AppScanOptionalFeature
@@ -69,7 +68,7 @@ class DocumentScanActivity : ToolbarActivity(), Injectable {
         binding = ActivityDocumentScanBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setupToolbar()
+        showActionBar(ActionBarStyle.Plain)
         supportActionBar?.let {
             it.setDisplayHomeAsUpEnabled(true)
             it.setDisplayShowHomeEnabled(true)
@@ -96,18 +95,18 @@ class DocumentScanActivity : ToolbarActivity(), Injectable {
                     }
                 }
 
-                override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
-                    return when (menuItem.itemId) {
-                        R.id.action_save -> {
-                            viewModel.onClickDone()
-                            true
-                        }
-                        android.R.id.home -> {
-                            onBackPressed()
-                            true
-                        }
-                        else -> false
+                override fun onMenuItemSelected(menuItem: MenuItem): Boolean = when (menuItem.itemId) {
+                    R.id.action_save -> {
+                        viewModel.onClickDone()
+                        true
                     }
+
+                    android.R.id.home -> {
+                        onBackPressedDispatcher.onBackPressed()
+                        true
+                    }
+
+                    else -> false
                 }
             }
         )
@@ -129,6 +128,7 @@ class DocumentScanActivity : ToolbarActivity(), Injectable {
                         startPageScan()
                     }
                 }
+
                 is DocumentScanViewModel.UIState.RequestExportState -> {
                     updateButtonsEnabled(false)
                     if (state.shouldRequestExportType) {
@@ -137,6 +137,7 @@ class DocumentScanActivity : ToolbarActivity(), Injectable {
                     }
                 }
             }
+
             DocumentScanViewModel.UIState.DoneState, DocumentScanViewModel.UIState.CanceledState -> {
                 finish()
             }

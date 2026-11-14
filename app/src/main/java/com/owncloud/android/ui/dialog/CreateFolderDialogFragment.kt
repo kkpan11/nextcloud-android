@@ -1,12 +1,12 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2015 David A. Velasco <dvelasco@solidgear.es>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.ui.dialog
 
@@ -14,26 +14,36 @@ import android.app.Dialog
 import android.content.DialogInterface
 import android.os.Bundle
 import android.text.Editable
-import android.text.TextUtils
 import android.text.TextWatcher
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.common.collect.Sets
+import com.nextcloud.client.account.CurrentAccountProvider
 import com.nextcloud.client.di.Injectable
+import com.nextcloud.client.network.ConnectivityService
+import com.nextcloud.utils.SnackbarUtil
+import com.nextcloud.utils.autoRename.AutoRename
 import com.nextcloud.utils.extensions.getParcelableArgument
+import com.nextcloud.utils.extensions.typedActivity
+import com.nextcloud.utils.fileNameValidator.FileNameValidator
 import com.owncloud.android.R
 import com.owncloud.android.databinding.EditBoxDialogBinding
 import com.owncloud.android.datamodel.FileDataStorageManager
 import com.owncloud.android.datamodel.OCFile
-import com.owncloud.android.lib.resources.files.FileUtils
+import com.owncloud.android.lib.common.utils.Log_OC
+import com.owncloud.android.lib.resources.status.OCCapability
 import com.owncloud.android.ui.activity.ComponentsGetter
-import com.owncloud.android.utils.DisplayUtils
+import com.owncloud.android.ui.activity.FileDisplayActivity
 import com.owncloud.android.utils.KeyboardUtils
 import com.owncloud.android.utils.theme.ViewThemeUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -42,20 +52,29 @@ import javax.inject.Inject
  *
  * Triggers the folder creation when name is confirmed.
  */
-class CreateFolderDialogFragment : DialogFragment(), DialogInterface.OnClickListener, Injectable {
-    @JvmField
-    @Inject
-    var fileDataStorageManager: FileDataStorageManager? = null
+class CreateFolderDialogFragment :
+    DialogFragment(),
+    DialogInterface.OnClickListener,
+    Injectable {
 
-    @JvmField
     @Inject
-    var viewThemeUtils: ViewThemeUtils? = null
+    lateinit var fileDataStorageManager: FileDataStorageManager
 
-    @JvmField
     @Inject
-    var keyboardUtils: KeyboardUtils? = null
-    private var mParentFolder: OCFile? = null
+    lateinit var viewThemeUtils: ViewThemeUtils
+
+    @Inject
+    lateinit var keyboardUtils: KeyboardUtils
+
+    @Inject
+    lateinit var connectivityService: ConnectivityService
+
+    @Inject
+    lateinit var accountProvider: CurrentAccountProvider
+
+    private var parentFolder: OCFile? = null
     private var positiveButton: MaterialButton? = null
+    private var encrypted: Boolean = false
 
     private lateinit var binding: EditBoxDialogBinding
 
@@ -68,113 +87,143 @@ class CreateFolderDialogFragment : DialogFragment(), DialogInterface.OnClickList
         val dialog = dialog
 
         if (dialog is AlertDialog) {
-            positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE) as MaterialButton
-            val negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE) as MaterialButton
+            positiveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE) as? MaterialButton
+            positiveButton?.let {
+                it.isEnabled = false
+                viewThemeUtils.material.colorMaterialButtonPrimaryTonal(it)
+            }
 
-            viewThemeUtils?.material?.colorMaterialButtonPrimaryTonal(positiveButton!!)
-            viewThemeUtils?.material?.colorMaterialButtonPrimaryBorderless(negativeButton)
+            val negativeButton = dialog.getButton(AlertDialog.BUTTON_NEGATIVE) as? MaterialButton
+            negativeButton?.let {
+                viewThemeUtils.material.colorMaterialButtonPrimaryBorderless(it)
+            }
         }
     }
 
     override fun onResume() {
         super.onResume()
         bindButton()
-        keyboardUtils!!.showKeyboardForEditText(requireDialog().window, binding.userInput)
+        keyboardUtils.showKeyboardForEditText(requireDialog().window, binding.userInput)
     }
 
     @Suppress("EmptyFunctionBlock")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        mParentFolder = arguments?.getParcelableArgument(ARG_PARENT_FOLDER, OCFile::class.java)
+        parentFolder = arguments?.getParcelableArgument(ARG_PARENT_FOLDER, OCFile::class.java)
 
-        // Inflate the layout for the dialog
         val inflater = requireActivity().layoutInflater
         binding = EditBoxDialogBinding.inflate(inflater, null, false)
-        val view: View = binding.root
 
-        // Setup layout
-        binding.userInput.setText("")
-        viewThemeUtils?.material?.colorTextInputLayout(binding.userInputContainer)
+        binding.userInput.setText(R.string.empty)
+        viewThemeUtils.material.colorTextInputLayout(binding.userInputContainer)
 
         val parentFolder = requireArguments().getParcelableArgument(ARG_PARENT_FOLDER, OCFile::class.java)
+        encrypted = requireArguments().getBoolean(ARG_ENCRYPTED, false)
 
-        val folderContent = fileDataStorageManager!!.getFolderContent(parentFolder, false)
+        val folderContent = fileDataStorageManager.getFolderContent(parentFolder, false)
         val fileNames: MutableSet<String> = Sets.newHashSetWithExpectedSize(folderContent.size)
         for (file in folderContent) {
             fileNames.add(file.fileName)
         }
 
-        // Add TextChangedListener to handle showing/hiding the input warning message
         binding.userInput.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable) {}
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
-
-            /**
-             * When user enters a hidden file name, the 'hidden file' message is shown. Otherwise,
-             * the message is ensured to be hidden.
-             */
+            override fun afterTextChanged(s: Editable) = Unit
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                var newFileName = ""
-                if (binding.userInput.text != null) {
-                    newFileName = binding.userInput.text.toString().trim { it <= ' ' }
-                }
-                if (!TextUtils.isEmpty(newFileName) && newFileName[0] == '.') {
-                    binding.userInputContainer.error = getText(R.string.hidden_file_name_warning)
-                } else if (TextUtils.isEmpty(newFileName)) {
-                    binding.userInputContainer.error = getString(R.string.filename_empty)
-                    if (positiveButton == null) {
-                        bindButton()
-                    }
-                    positiveButton!!.isEnabled = false
-                } else if (!FileUtils.isValidName(newFileName)) {
-                    binding.userInputContainer.error = getString(R.string.filename_forbidden_charaters_from_server)
-                    positiveButton!!.isEnabled = false
-                } else if (fileNames.contains(newFileName)) {
-                    binding.userInputContainer.error = getText(R.string.file_already_exists)
-                    positiveButton!!.isEnabled = false
-                } else if (binding.userInputContainer.error != null) {
-                    binding.userInputContainer.error = null
-                    // Called to remove extra padding
-                    binding.userInputContainer.isErrorEnabled = false
-                    positiveButton!!.isEnabled = true
-                }
+                checkFileNameAfterEachType(fileNames)
             }
         })
 
-        // Build the dialog
-        val builder = buildMaterialAlertDialog(view)
-        viewThemeUtils?.dialog?.colorMaterialAlertDialogBackground(binding.userInputContainer.context, builder)
+        val builder = buildMaterialAlertDialog(binding.root)
+        viewThemeUtils.dialog.colorMaterialAlertDialogBackground(binding.userInputContainer.context, builder)
         return builder.create()
     }
 
-    private fun buildMaterialAlertDialog(view: View): MaterialAlertDialogBuilder {
-        val builder = MaterialAlertDialogBuilder(requireActivity())
-        builder
+    private fun getOCCapability(): OCCapability = fileDataStorageManager.getCapability(accountProvider.user.accountName)
+
+    private fun checkFileNameAfterEachType(fileNames: MutableSet<String>) {
+        val newFileName = binding.userInput.text?.toString() ?: ""
+
+        val fileNameValidatorResult: String? =
+            FileNameValidator.checkFileName(newFileName, getOCCapability(), requireContext(), fileNames)
+
+        val errorMessage = when {
+            newFileName.isBlank() -> getString(R.string.folder_name_empty)
+            fileNameValidatorResult != null -> fileNameValidatorResult
+            else -> null
+        }
+
+        if (errorMessage != null) {
+            binding.userInputContainer.error = errorMessage
+            positiveButton?.isEnabled = false
+            if (positiveButton == null) {
+                bindButton()
+            }
+        } else if (FileNameValidator.isFileHidden(newFileName)) {
+            binding.userInputContainer.error = requireContext().getString(R.string.hidden_file_name_warning)
+            binding.userInputContainer.isErrorEnabled = true
+            positiveButton?.isEnabled = true
+        } else {
+            binding.userInputContainer.error = null
+            binding.userInputContainer.isErrorEnabled = false
+            positiveButton?.isEnabled = true
+        }
+    }
+
+    private fun buildMaterialAlertDialog(view: View): MaterialAlertDialogBuilder =
+        MaterialAlertDialogBuilder(requireActivity())
             .setView(view)
             .setPositiveButton(R.string.folder_confirm_create, this)
             .setNegativeButton(R.string.common_cancel, this)
             .setTitle(R.string.uploader_info_dirname)
-        return builder
-    }
 
     override fun onClick(dialog: DialogInterface, which: Int) {
         if (which == AlertDialog.BUTTON_POSITIVE) {
-            val newFolderName = (getDialog()!!.findViewById<View>(R.id.user_input) as TextView)
-                .text.toString().trim { it <= ' ' }
-            if (TextUtils.isEmpty(newFolderName)) {
-                DisplayUtils.showSnackMessage(requireActivity(), R.string.filename_empty)
+            val capabilities = getOCCapability()
+
+            var newFolderName = (getDialog()?.findViewById<View>(R.id.user_input) as TextView)
+                .text.toString()
+
+            val errorMessage: String? =
+                FileNameValidator.checkFileName(newFolderName, capabilities, requireContext())
+
+            if (errorMessage != null) {
+                SnackbarUtil.show(requireActivity(), errorMessage)
                 return
             }
-            if (!FileUtils.isValidName(newFolderName)) {
-                DisplayUtils.showSnackMessage(requireActivity(), R.string.filename_forbidden_charaters_from_server)
-                return
+
+            newFolderName = AutoRename.rename(newFolderName, capabilities, isFolderPath = true)
+
+            val path = parentFolder?.decryptedRemotePath + newFolderName + OCFile.PATH_SEPARATOR
+
+            val componentGetter = typedActivity<ComponentsGetter>()
+            connectivityService.isNetworkAndServerAvailable {
+                if (it) {
+                    componentGetter?.fileOperationsHelper?.createFolder(path, encrypted)
+                } else {
+                    Log_OC.d(TAG, "Network not available, creating offline operation")
+                    createFolderOfflineOperation(path, newFolderName)
+                }
             }
-            val path = mParentFolder!!.decryptedRemotePath + newFolderName + OCFile.PATH_SEPARATOR
-            (requireActivity() as ComponentsGetter).fileOperationsHelper.createFolder(path)
+        }
+    }
+
+    private fun createFolderOfflineOperation(path: String, folderName: String) {
+        val activity = typedActivity<FileDisplayActivity>() ?: return
+
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            fileDataStorageManager.addCreateFolderOfflineOperation(path, folderName, parentFolder?.fileId)
+
+            withContext(Dispatchers.Main) {
+                activity.refreshCurrentDirectory()
+            }
         }
     }
 
     companion object {
+        private const val TAG = "CreateFolderDialogFragment"
         private const val ARG_PARENT_FOLDER = "PARENT_FOLDER"
+        private const val ARG_ENCRYPTED = "ENCRYPTED"
+
         const val CREATE_FOLDER_FRAGMENT = "CREATE_FOLDER_FRAGMENT"
 
         /**
@@ -184,12 +233,16 @@ class CreateFolderDialogFragment : DialogFragment(), DialogInterface.OnClickList
          * @return Dialog ready to show.
          */
         @JvmStatic
-        fun newInstance(parentFolder: OCFile?): CreateFolderDialogFragment {
-            val frag = CreateFolderDialogFragment()
-            val args = Bundle()
-            args.putParcelable(ARG_PARENT_FOLDER, parentFolder)
-            frag.arguments = args
-            return frag
+        @JvmOverloads
+        fun newInstance(parentFolder: OCFile?, encrypted: Boolean = false): CreateFolderDialogFragment {
+            val bundle = Bundle().apply {
+                putBoolean(ARG_ENCRYPTED, encrypted)
+                putParcelable(ARG_PARENT_FOLDER, parentFolder)
+            }
+
+            return CreateFolderDialogFragment().apply {
+                arguments = bundle
+            }
         }
     }
 }

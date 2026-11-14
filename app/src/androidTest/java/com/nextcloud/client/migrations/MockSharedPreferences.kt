@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.migrations
 
@@ -16,7 +16,6 @@ import java.util.TreeMap
  *
  * The implementation is not thread-safe.
  */
-@Suppress("TooManyFunctions")
 class MockSharedPreferences : SharedPreferences {
 
     class MockEditor(val store: MutableMap<String?, Any?>) : SharedPreferences.Editor {
@@ -69,25 +68,16 @@ class MockSharedPreferences : SharedPreferences {
 
     override fun getInt(key: String?, defValue: Int): Int = store.getOrDefault(key, defValue) as Int
 
-    override fun getAll(): MutableMap<String?, Any?> {
-        return HashMap(store)
-    }
+    override fun getAll(): MutableMap<String?, Any?> = HashMap(store)
 
-    override fun edit(): SharedPreferences.Editor {
-        return MockEditor(store)
-    }
+    override fun edit(): SharedPreferences.Editor = MockEditor(store)
 
-    override fun getLong(key: String?, defValue: Long): Long {
-        throw UnsupportedOperationException()
-    }
+    override fun getLong(key: String?, defValue: Long): Long = throw UnsupportedOperationException()
 
-    override fun getFloat(key: String?, defValue: Float): Float {
-        throw UnsupportedOperationException()
-    }
+    override fun getFloat(key: String?, defValue: Float): Float = throw UnsupportedOperationException()
 
-    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? {
-        return store.getOrDefault(key, defValues) as MutableSet<String>?
-    }
+    override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? =
+        store.getOrDefault(key, defValues) as MutableSet<String>?
 
     override fun registerOnSharedPreferenceChangeListener(
         listener: SharedPreferences.OnSharedPreferenceChangeListener?

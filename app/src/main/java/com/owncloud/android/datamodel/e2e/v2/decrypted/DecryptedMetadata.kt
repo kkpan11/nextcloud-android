@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2023 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.datamodel.e2e.v2.decrypted
 
@@ -12,7 +12,7 @@ import com.owncloud.android.utils.EncryptionUtils
 data class DecryptedMetadata(
     val keyChecksums: MutableList<String> = mutableListOf(),
     val deleted: Boolean = false,
-    var counter: Long = 0,
+    var counter: Long = EncryptionUtils.E2E_V2_INITIAL_COUNTER,
     val folders: MutableMap<String, String> = mutableMapOf(),
     val files: MutableMap<String, DecryptedFile> = mutableMapOf(),
     @Transient

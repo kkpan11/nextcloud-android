@@ -10,7 +10,7 @@
  * SPDX-FileCopyrightText: 2014 Luke Owncloud <owncloud@ohrt.org>
  * SPDX-FileCopyrightText: 2015-2016 David A. Velasco <dvelasco@solidgear.es>
  * SPDX-FileCopyrightText: 2015-2016 María Asensio Valverde <masensio@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.db;
 
@@ -31,6 +31,7 @@ import com.owncloud.android.utils.MimeTypeUtil;
 import java.io.File;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
@@ -130,9 +131,11 @@ public class OCUpload implements Parcelable {
      */
     public OCUpload(String localPath, String remotePath, String accountName) {
         if (localPath == null || !localPath.startsWith(File.separator)) {
+            Log_OC.e(TAG, "oc upload, local path: " + localPath);
             throw new IllegalArgumentException("Local path must be an absolute path in the local file system");
         }
         if (remotePath == null || !remotePath.startsWith(OCFile.PATH_SEPARATOR)) {
+            Log_OC.e(TAG, "oc upload, remote path: " + remotePath);
             throw new IllegalArgumentException("Remote path must be an absolute path in the local file system");
         }
         if (accountName == null || accountName.length() < 1) {
@@ -238,7 +241,7 @@ public class OCUpload implements Parcelable {
     /****
      *
      */
-    public static final Parcelable.Creator<OCUpload> CREATOR = new Parcelable.Creator<OCUpload>() {
+    public static final Parcelable.Creator<OCUpload> CREATOR = new Parcelable.Creator<>() {
 
         @Override
         public OCUpload createFromParcel(Parcel source) {
@@ -290,13 +293,18 @@ public class OCUpload implements Parcelable {
         return this.hashCode();
     }
 
-    @SuppressFBWarnings("SEO_SUBOPTIMAL_EXPRESSION_ORDER")
+
     public boolean isSame(@Nullable Object obj) {
-        if (!(obj instanceof OCUpload)) {
+        return isSame(obj, false);
+    }
+
+    @SuppressFBWarnings("SEO_SUBOPTIMAL_EXPRESSION_ORDER")
+    @VisibleForTesting
+    public boolean isSame(@Nullable Object obj, boolean ignoreUploadId) {
+        if (!(obj instanceof OCUpload other)) {
             return false;
         }
-        OCUpload other = (OCUpload) obj;
-        return this.uploadId == other.uploadId &&
+        return (ignoreUploadId || this.uploadId == other.uploadId) &&
             localPath.equals(other.localPath) &&
             remotePath.equals(other.remotePath) &&
             accountName.equals(other.accountName) &&

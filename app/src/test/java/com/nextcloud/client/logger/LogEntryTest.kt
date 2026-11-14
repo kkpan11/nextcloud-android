@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.logger
 
@@ -80,7 +80,7 @@ class LogEntryTest {
                 timestamp = Date(0),
                 level = Level.DEBUG,
                 tag =
-                """靖康緗素雜記""",
+                    """靖康緗素雜記""",
                 message = "夏炉冬扇"
             )
             assertEquals("1970-01-01T00:00:00.000Z;D;靖康緗素雜記;夏炉冬扇", entry.toString())

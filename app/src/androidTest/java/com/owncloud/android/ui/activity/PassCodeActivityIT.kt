@@ -1,66 +1,93 @@
 /*
  * Nextcloud - Android Client
  *
+ * SPDX-FileCopyrightText: 2025 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.activity
 
 import android.content.Intent
+import androidx.test.core.app.launchActivity
 import androidx.test.espresso.Espresso
-import androidx.test.espresso.intent.rule.IntentsTestRule
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.isRoot
 import com.owncloud.android.AbstractIT
 import com.owncloud.android.utils.ScreenshotTest
-import org.junit.Rule
 import org.junit.Test
 
 class PassCodeActivityIT : AbstractIT() {
-    @get:Rule
-    var activityRule = IntentsTestRule(PassCodeActivity::class.java, true, false)
+    private val testClassName = "com.owncloud.android.ui.activity.PassCodeActivityIT"
 
     @Test
     @ScreenshotTest
     fun check() {
-        val sut = activityRule.launchActivity(Intent(PassCodeActivity.ACTION_CHECK))
+        val intent = Intent(targetContext, PassCodeActivity::class.java).apply {
+            action = PassCodeActivity.ACTION_CHECK
+        }
 
-        waitForIdleSync()
+        launchActivity<PassCodeActivity>(intent).use { scenario ->
+            scenario.onActivity { sut ->
+                sut.binding.txt0.clearFocus()
+            }
 
-        sut.runOnUiThread { sut.binding.txt0.clearFocus() }
-        Espresso.closeSoftKeyboard()
-        shortSleep()
-        waitForIdleSync()
+            Espresso.closeSoftKeyboard()
 
-        screenshot(sut)
+            val screenShotName = createName(testClassName + "_" + "check", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 
     @Test
     @ScreenshotTest
     fun request() {
-        val sut = activityRule.launchActivity(Intent(PassCodeActivity.ACTION_REQUEST_WITH_RESULT))
+        val intent = Intent(targetContext, PassCodeActivity::class.java).apply {
+            action = PassCodeActivity.ACTION_REQUEST_WITH_RESULT
+        }
 
-        waitForIdleSync()
+        launchActivity<PassCodeActivity>(intent).use { scenario ->
+            scenario.onActivity { sut ->
+                sut.binding.txt0.clearFocus()
+            }
 
-        sut.runOnUiThread { sut.binding.txt0.clearFocus() }
-        Espresso.closeSoftKeyboard()
-        shortSleep()
-        waitForIdleSync()
+            Espresso.closeSoftKeyboard()
 
-        screenshot(sut)
+            val screenShotName = createName(testClassName + "_" + "request", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 
     @Test
     @ScreenshotTest
     fun delete() {
-        val sut = activityRule.launchActivity(Intent(PassCodeActivity.ACTION_CHECK_WITH_RESULT))
+        val intent = Intent(targetContext, PassCodeActivity::class.java).apply {
+            action = PassCodeActivity.ACTION_CHECK_WITH_RESULT
+        }
 
-        waitForIdleSync()
+        launchActivity<PassCodeActivity>(intent).use { scenario ->
+            scenario.onActivity { sut ->
+                sut.binding.txt0.clearFocus()
+            }
 
-        sut.runOnUiThread { sut.binding.txt0.clearFocus() }
-        Espresso.closeSoftKeyboard()
-        shortSleep()
-        waitForIdleSync()
+            Espresso.closeSoftKeyboard()
 
-        screenshot(sut)
+            val screenShotName = createName(testClassName + "_" + "delete", "")
+            onView(isRoot()).check(matches(isDisplayed()))
+
+            scenario.onActivity { sut ->
+                screenshotViaName(sut, screenShotName)
+            }
+        }
     }
 }

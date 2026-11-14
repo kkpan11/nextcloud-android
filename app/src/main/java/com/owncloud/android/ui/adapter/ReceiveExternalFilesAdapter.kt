@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.adapter
 
@@ -15,19 +15,20 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.nextcloud.client.account.User
+import com.nextcloud.utils.HumanReadableFormatter
+import com.nextcloud.utils.text.DisplayTextFormatter
 import com.owncloud.android.databinding.UploaderListItemLayoutBinding
 import com.owncloud.android.datamodel.FileDataStorageManager
 import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.datamodel.SyncedFolderObserver
 import com.owncloud.android.datamodel.SyncedFolderProvider
 import com.owncloud.android.datamodel.ThumbnailsCacheManager
 import com.owncloud.android.datamodel.ThumbnailsCacheManager.AsyncThumbnailDrawable
 import com.owncloud.android.datamodel.ThumbnailsCacheManager.ThumbnailGenerationTask
 import com.owncloud.android.datamodel.ThumbnailsCacheManager.ThumbnailGenerationTaskObject
-import com.owncloud.android.utils.DisplayUtils
 import com.owncloud.android.utils.MimeTypeUtil
 import com.owncloud.android.utils.theme.ViewThemeUtils
 
-@Suppress("LongParameterList")
 class ReceiveExternalFilesAdapter(
     private val files: List<OCFile>,
     private val context: Context,
@@ -78,10 +79,11 @@ class ReceiveExternalFilesAdapter(
         val file = filteredFiles[position]
 
         viewHolder.binding.filename.text = file.fileName
-        viewHolder.binding.lastMod.text = DisplayUtils.getRelativeTimestamp(context, file.modificationTimestamp)
+        viewHolder.binding.lastMod.text =
+            DisplayTextFormatter.formatRelativeTimestamp(context, file.modificationTimestamp)
 
         if (!file.isFolder) {
-            viewHolder.binding.fileSize.text = DisplayUtils.bytesToHumanReadable(file.fileLength)
+            viewHolder.binding.fileSize.text = HumanReadableFormatter.formatBytes(file.fileLength)
         }
 
         viewHolder.binding.fileSize.visibility = if (file.isFolder) {
@@ -112,10 +114,10 @@ class ReceiveExternalFilesAdapter(
     }
 
     private fun setupThumbnailForFolder(thumbnailImageView: ImageView, file: OCFile) {
-        val isAutoUploadFolder = SyncedFolderProvider.isAutoUploadFolder(syncedFolderProvider, file, user)
+        val isAutoUploadFolder = SyncedFolderObserver.isAutoUploadFolder(file, user)
         val isDarkModeActive = syncedFolderProvider.preferences.isDarkModeEnabled
         val overlayIconId = file.getFileOverlayIconId(isAutoUploadFolder)
-        val icon = MimeTypeUtil.getFileIcon(isDarkModeActive, overlayIconId, context, viewThemeUtils)
+        val icon = MimeTypeUtil.getFolderIcon(isDarkModeActive, overlayIconId, context, viewThemeUtils)
         thumbnailImageView.setImageDrawable(icon)
     }
 
@@ -159,4 +161,6 @@ class ReceiveExternalFilesAdapter(
     }
 
     override fun getItemCount() = filteredFiles.size
+
+    fun getFileNames(): Set<String> = files.map { it.fileName }.toSet()
 }

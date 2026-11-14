@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 
 package com.nextcloud.client.network;
@@ -21,6 +21,11 @@ import com.owncloud.android.lib.common.accounts.AccountUtils;
 
 import java.io.IOException;
 
+/**
+ * @deprecated Inject {@link com.nextcloud.repository.ClientRepository} and use its suspend
+ * {@code getOwncloudClient()} / {@code getNextcloudClient()} functions instead.
+ */
+@Deprecated
 public interface ClientFactory {
 
     /**

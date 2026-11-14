@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.files
 
@@ -18,9 +18,7 @@ import com.nextcloud.client.account.UserAccountManager
  *       [com.nextcloud.client.mixins.ActivityMixin] and handle UI callbacks as well
  */
 @Suppress("ForbiddenComment")
-class DeepLinkHandler(
-    private val userAccountManager: UserAccountManager
-) {
+class DeepLinkHandler(private val userAccountManager: UserAccountManager) {
 
     /**
      * Provide parsed link arguments and context information required
@@ -30,9 +28,9 @@ class DeepLinkHandler(
 
     companion object {
         val DEEP_LINK_PATTERN = Regex("""(.*?)(/index\.php)?/f/([0-9]+)$""")
-        val BASE_URL_GROUP_INDEX = 1
-        val INDEX_PATH_GROUP_INDEX = 2
-        val FILE_ID_GROUP_INDEX = 3
+        const val BASE_URL_GROUP_INDEX = 1
+        const val INDEX_PATH_GROUP_INDEX = 2
+        const val FILE_ID_GROUP_INDEX = 3
     }
 
     /**

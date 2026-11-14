@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2024 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.test.model
 
@@ -24,17 +24,11 @@ data class TestDataParcelable(val message: String) : Parcelable {
         parcel.writeString(message)
     }
 
-    override fun describeContents(): Int {
-        return 0
-    }
+    override fun describeContents(): Int = 0
 
     companion object CREATOR : Parcelable.Creator<TestDataParcelable> {
-        override fun createFromParcel(parcel: Parcel): TestDataParcelable {
-            return TestDataParcelable(parcel)
-        }
+        override fun createFromParcel(parcel: Parcel): TestDataParcelable = TestDataParcelable(parcel)
 
-        override fun newArray(size: Int): Array<TestDataParcelable?> {
-            return arrayOfNulls(size)
-        }
+        override fun newArray(size: Int): Array<TestDataParcelable?> = arrayOfNulls(size)
     }
 }

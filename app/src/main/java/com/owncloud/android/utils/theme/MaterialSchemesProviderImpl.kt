@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils.theme
 
@@ -29,14 +29,14 @@ internal class MaterialSchemesProviderImpl @Inject constructor(
     private val themeCache: MutableMap<String, MaterialSchemes> = ConcurrentHashMap()
 
     override fun getMaterialSchemesForUser(user: User): MaterialSchemes {
-        val url: String = user.server.uri.toString()
+        val accountName = user.accountName
 
-        if (!themeCache.containsKey(url)) {
+        if (!themeCache.containsKey(accountName)) {
             val capability = CapabilityUtils.getCapability(user, context)
-            themeCache[url] = getMaterialSchemesForCapability(capability)
+            themeCache[accountName] = getMaterialSchemesForCapability(capability)
         }
 
-        return themeCache[url]!!
+        return themeCache[accountName]!!
     }
 
     override fun getMaterialSchemesForCapability(capability: OCCapability): MaterialSchemes {
@@ -44,14 +44,13 @@ internal class MaterialSchemesProviderImpl @Inject constructor(
         return MaterialSchemes.fromServerTheme(serverTheme)
     }
 
-    override fun getMaterialSchemesForCurrentUser(): MaterialSchemes {
-        return when (val user = userAccountManager.user) {
-            is AnonymousUser -> {
-                logger.d(TAG, "User is anonymous, using default schemes")
-                getDefaultMaterialSchemes()
-            }
-            else -> getMaterialSchemesForUser(user)
+    override fun getMaterialSchemesForCurrentUser(): MaterialSchemes = when (val user = userAccountManager.user) {
+        is AnonymousUser -> {
+            logger.d(TAG, "User is anonymous, using default schemes")
+            getDefaultMaterialSchemes()
         }
+
+        else -> getMaterialSchemesForUser(user)
     }
 
     override fun getDefaultMaterialSchemes(): MaterialSchemes {

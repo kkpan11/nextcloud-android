@@ -1,153 +1,109 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs.upload
 
-import android.app.Notification
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.graphics.BitmapFactory
-import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.nextcloud.client.jobs.notification.WorkerNotificationManager
+import com.nextcloud.utils.numberFormatter.NumberFormatter
 import com.owncloud.android.R
-import com.owncloud.android.lib.common.operations.RemoteOperationResult
-import com.owncloud.android.lib.resources.files.FileUtils
 import com.owncloud.android.operations.UploadFileOperation
 import com.owncloud.android.ui.notifications.NotificationUtils
 import com.owncloud.android.utils.theme.ViewThemeUtils
 
-class UploadNotificationManager(private val context: Context, viewThemeUtils: ViewThemeUtils) {
-    companion object {
-        private const val ID = 411
-    }
-
-    private var notification: Notification? = null
-    private var notificationBuilder: NotificationCompat.Builder =
-        NotificationUtils.newNotificationBuilder(context, viewThemeUtils).apply {
-            setContentTitle(context.getString(R.string.foreground_service_upload))
-            setSmallIcon(R.drawable.notification_icon)
-            setLargeIcon(BitmapFactory.decodeResource(context.resources, R.drawable.notification_icon))
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                setChannelId(NotificationUtils.NOTIFICATION_CHANNEL_UPLOAD)
-            }
-        }
-    private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-    init {
-        notification = notificationBuilder.build()
-    }
+class UploadNotificationManager(private val context: Context, viewThemeUtils: ViewThemeUtils, id: Int) :
+    WorkerNotificationManager(
+        id,
+        context,
+        viewThemeUtils,
+        tickerId = R.string.foreground_service_upload,
+        channelId = NotificationUtils.NOTIFICATION_CHANNEL_UPLOAD
+    ) {
 
     @Suppress("MagicNumber")
-    fun prepareForStart(upload: UploadFileOperation, pendingIntent: PendingIntent, startIntent: PendingIntent) {
+    fun prepareForStart(
+        operation: UploadFileOperation,
+        startIntent: PendingIntent,
+        currentUploadIndex: Int,
+        totalUploadSize: Int
+    ) {
+        currentOperationTitle = if (totalUploadSize > 1) {
+            String.format(
+                context.getString(R.string.upload_notification_manager_start_text),
+                currentUploadIndex,
+                totalUploadSize,
+                operation.fileName
+            )
+        } else {
+            operation.fileName
+        }
+
+        val progressText = NumberFormatter.getPercentageText(0)
+
         notificationBuilder.run {
-            setContentTitle(context.getString(R.string.uploader_upload_in_progress_ticker))
-            setContentText(
-                String.format(
-                    context.getString(R.string.uploader_upload_in_progress),
-                    0,
-                    upload.fileName
-                )
-            )
-            setTicker(context.getString(R.string.foreground_service_upload))
             setProgress(100, 0, false)
-            setOngoing(true)
+            setContentTitle(currentOperationTitle)
+            setContentText(progressText)
+            setOngoing(false)
             clearActions()
-
-            addAction(
-                R.drawable.ic_action_cancel_grey,
-                context.getString(R.string.common_cancel),
-                pendingIntent
+            setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(context.getString(R.string.upload_notification_manager_content_intent_description))
             )
-
+            addAction(UploadBroadcastAction.PauseAndCancel(operation).pauseAction(context))
+            addAction(UploadBroadcastAction.PauseAndCancel(operation).cancelAction(context))
             setContentIntent(startIntent)
         }
 
-        if (!upload.isInstantPicture && !upload.isInstantVideo) {
+        if (!operation.isInstantPicture && !operation.isInstantVideo) {
             showNotification()
         }
     }
 
-    fun notifyForFailedResult(
-        resultCode: RemoteOperationResult.ResultCode,
-        conflictsResolveIntent: PendingIntent?,
-        credentialIntent: PendingIntent?,
-        errorMessage: String
-    ) {
-        val textId = resultTitle(resultCode)
+    @Suppress("MagicNumber")
+    fun updateUploadProgress(percent: Int, currentOperation: UploadFileOperation?) {
+        val progressText = NumberFormatter.getPercentageText(percent)
+        setProgress(percent, progressText, false)
+        showNotification()
+        dismissOldErrorNotification(currentOperation)
+    }
 
+    fun showSameFileAlreadyExistsNotification(filename: String) {
         notificationBuilder.run {
-            setTicker(context.getString(textId))
-            setContentTitle(context.getString(textId))
-            setAutoCancel(false)
-            setOngoing(false)
-            setProgress(0, 0, false)
+            setAutoCancel(true)
             clearActions()
-
-            conflictsResolveIntent?.let {
-                addAction(
-                    R.drawable.ic_cloud_upload,
-                    R.string.upload_list_resolve_conflict,
-                    it
-                )
-            }
-
-            credentialIntent?.let {
-                setContentIntent(it)
-            }
-
-            setContentText(errorMessage)
+            setContentText("")
+            setProgress(0, 0, false)
+            setContentTitle(context.getString(R.string.file_upload_worker_same_file_already_exists, filename))
         }
-    }
 
-    private fun resultTitle(resultCode: RemoteOperationResult.ResultCode): Int {
-        val needsToUpdateCredentials = (resultCode == RemoteOperationResult.ResultCode.UNAUTHORIZED)
+        val notificationId = filename.hashCode()
 
-        return if (needsToUpdateCredentials) {
-            R.string.uploader_upload_failed_credentials_error
-        } else if (resultCode == RemoteOperationResult.ResultCode.SYNC_CONFLICT) {
-            R.string.uploader_upload_failed_sync_conflict_error
-        } else {
-            R.string.uploader_upload_failed_ticker
-        }
-    }
-
-    fun addAction(icon: Int, textId: Int, intent: PendingIntent) {
-        notificationBuilder.addAction(
-            icon,
-            context.getString(textId),
-            intent
-        )
-    }
-
-    fun showNewNotification(operation: UploadFileOperation) {
         notificationManager.notify(
-            NotificationUtils.createUploadNotificationTag(operation.file),
-            FileUploadWorker.NOTIFICATION_ERROR_ID,
+            notificationId,
             notificationBuilder.build()
         )
     }
 
-    private fun showNotification() {
-        notificationManager.notify(ID, notificationBuilder.build())
-    }
+    fun showConnectionErrorNotification() {
+        notificationManager.cancel(getId())
 
-    @Suppress("MagicNumber")
-    fun updateUploadProgress(filePath: String, percent: Int, currentOperation: UploadFileOperation?) {
         notificationBuilder.run {
-            setProgress(100, percent, false)
-            val fileName = filePath.substring(filePath.lastIndexOf(FileUtils.PATH_SEPARATOR) + 1)
-            val text = String.format(context.getString(R.string.uploader_upload_in_progress), percent, fileName)
-            setContentText(text)
-
-            showNotification()
-            dismissOldErrorNotification(currentOperation)
+            clearActions()
+            setContentTitle(context.getString(R.string.file_upload_worker_error_notification_title))
+            setContentText("")
         }
+
+        notificationManager.notify(
+            FileUploadWorker.NOTIFICATION_ERROR_ID,
+            notificationBuilder.build()
+        )
     }
 
     fun dismissOldErrorNotification(operation: UploadFileOperation?) {
@@ -155,29 +111,16 @@ class UploadNotificationManager(private val context: Context, viewThemeUtils: Vi
             return
         }
 
-        dismissOldErrorNotification(operation.file.remotePath, operation.file.storagePath)
-
-        operation.oldFile?.let {
-            dismissOldErrorNotification(it.remotePath, it.storagePath)
-        }
+        dismissNotification(operation.ocUploadId.toInt())
     }
 
-    fun dismissOldErrorNotification(remotePath: String, localPath: String) {
-        notificationManager.cancel(
-            NotificationUtils.createUploadNotificationTag(remotePath, localPath),
-            FileUploadWorker.NOTIFICATION_ERROR_ID
-        )
-    }
-
-    fun dismissWorkerNotifications() {
-        notificationManager.cancel(ID)
-    }
+    fun dismissErrorNotification() = notificationManager.cancel(FileUploadWorker.NOTIFICATION_ERROR_ID)
 
     fun notifyPaused(intent: PendingIntent) {
-        notificationBuilder.apply {
+        notificationBuilder.run {
             setContentTitle(context.getString(R.string.upload_global_pause_title))
             setTicker(context.getString(R.string.upload_global_pause_title))
-            setOngoing(true)
+            setOngoing(false)
             setAutoCancel(false)
             setProgress(0, 0, false)
             clearActions()

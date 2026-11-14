@@ -3,7 +3,7 @@
   ~ Nextcloud - Android Client
   ~
   ~ SPDX-FileCopyrightText: 2018 Andy Scherzinger <info@andy-scherzinger.de>
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -29,6 +29,6 @@
         android:paddingRight="@dimen/standard_half_padding"
         android:paddingStart="@dimen/standard_half_margin"
         android:textColor="@color/standard_grey"
-        tools:text="@string/offline_mode" />
+        tools:text="@string/placeholder_share_no_internet_connection" />
 
 </LinearLayout>

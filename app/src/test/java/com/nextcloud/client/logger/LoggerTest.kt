@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.logger
 
@@ -303,7 +303,6 @@ class LoggerTest {
     }
 
     @Test
-    @Suppress("TooGenericExceptionCaught")
     fun `thread interruption is handled while posting log message`() {
         Thread {
             val callerThread = Thread.currentThread()

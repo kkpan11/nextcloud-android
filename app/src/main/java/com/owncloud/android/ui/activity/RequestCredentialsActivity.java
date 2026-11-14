@@ -5,7 +5,7 @@
  *  Copyright (C) 2017
  *  Copyright (C) 2017 Nextcloud GmbH.
  *
- *  SPDX-License-Identifier: AGPL-3.0-or-later
+ *  SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  *
  */
 package com.owncloud.android.ui.activity;
@@ -14,14 +14,17 @@ import android.app.Activity;
 import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 import android.os.SystemClock;
-import android.widget.Toast;
 
 import com.nextcloud.client.preferences.AppPreferencesImpl;
+import com.nextcloud.utils.SnackbarUtil;
 import com.owncloud.android.R;
+import com.owncloud.android.authentication.PassCodeManager;
 import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.utils.DeviceCredentialUtils;
-import com.owncloud.android.utils.DisplayUtils;
+
+import androidx.annotation.Nullable;
 
 /**
  * Dummy activity that is used to handle the device's default authentication workflow.
@@ -37,6 +40,12 @@ public class RequestCredentialsActivity extends Activity {
     private static final int REQUEST_CODE_CONFIRM_DEVICE_CREDENTIALS = 1;
 
     @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        PassCodeManager.Companion.setSecureFlag(this,true);
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_CODE_CONFIRM_DEVICE_CREDENTIALS) {
             if (resultCode == Activity.RESULT_OK) {
@@ -45,7 +54,7 @@ public class RequestCredentialsActivity extends Activity {
             } else if (resultCode == Activity.RESULT_CANCELED) {
                 finishWithResult(KEY_CHECK_RESULT_CANCEL);
             } else {
-                Toast.makeText(this, R.string.default_credentials_wrong, Toast.LENGTH_SHORT).show();
+                SnackbarUtil.show(this, R.string.default_credentials_wrong);
                 requestCredentials();
             }
         }
@@ -58,7 +67,7 @@ public class RequestCredentialsActivity extends Activity {
         if (DeviceCredentialUtils.areCredentialsAvailable(this)) {
             requestCredentials();
         } else {
-            DisplayUtils.showSnackMessage(this, R.string.prefs_lock_device_credentials_not_setup);
+            SnackbarUtil.show(this, R.string.prefs_lock_device_credentials_not_setup);
             finishWithResult(KEY_CHECK_RESULT_CANCEL);
         }
     }
@@ -81,5 +90,11 @@ public class RequestCredentialsActivity extends Activity {
         resultIntent.putExtra(KEY_CHECK_RESULT, success);
         setResult(Activity.RESULT_OK, resultIntent);
         finish();
+    }
+
+    @Override
+    protected void onDestroy() {
+        PassCodeManager.Companion.setSecureFlag(this,false);
+        super.onDestroy();
     }
 }

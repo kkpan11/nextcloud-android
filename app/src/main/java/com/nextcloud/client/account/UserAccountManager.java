@@ -2,13 +2,14 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 
 import com.owncloud.android.MainApp;
@@ -29,6 +30,9 @@ public interface UserAccountManager extends CurrentAccountProvider {
     int ACCOUNT_VERSION_WITH_PROPER_ID = 2;
     String ACCOUNT_USES_STANDARD_PASSWORD = "ACCOUNT_USES_STANDARD_PASSWORD";
     String PENDING_FOR_REMOVAL = "PENDING_FOR_REMOVAL";
+
+    @Nullable
+    Context getContext();
 
     @Nullable
     OwnCloudAccount getCurrentOwnCloudAccount();
@@ -95,7 +99,7 @@ public interface UserAccountManager extends CurrentAccountProvider {
 
     boolean setCurrentOwnCloudAccount(String accountName);
 
-    boolean setCurrentOwnCloudAccount(int hashCode);
+    boolean setCurrentOwnCloudAccount(User user);
 
     /**
      * Access the version of the OC server corresponding to an account SAVED IN THE ACCOUNTMANAGER

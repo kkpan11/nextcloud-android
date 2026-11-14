@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2016 Andy Scherzinger
  * SPDX-FileCopyrightText: 2016 Nextcloud
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.dialog.parcel;
 
@@ -45,7 +45,7 @@ public class SyncedFolderParcelable implements Parcelable {
         remotePath = syncedFolderDisplayItem.getRemotePath();
         wifiOnly = syncedFolderDisplayItem.isWifiOnly();
         chargingOnly = syncedFolderDisplayItem.isChargingOnly();
-        existing = syncedFolderDisplayItem.isExisting();
+        existing = syncedFolderDisplayItem.alsoUploadExistingFiles();
         enabled = syncedFolderDisplayItem.isEnabled();
         subfolderByDate = syncedFolderDisplayItem.isSubfolderByDate();
         type = syncedFolderDisplayItem.getType();
@@ -105,7 +105,7 @@ public class SyncedFolderParcelable implements Parcelable {
     }
 
     public static final Creator<SyncedFolderParcelable> CREATOR =
-            new Creator<SyncedFolderParcelable>() {
+            new Creator<>() {
 
                 @Override
                 public SyncedFolderParcelable createFromParcel(Parcel source) {
@@ -124,15 +124,12 @@ public class SyncedFolderParcelable implements Parcelable {
     }
 
     public Integer getUploadActionInteger() {
-        switch (uploadAction) {
-            case FileUploadWorker.LOCAL_BEHAVIOUR_FORGET:
-                return 0;
-            case FileUploadWorker.LOCAL_BEHAVIOUR_MOVE:
-                return 1;
-            case FileUploadWorker.LOCAL_BEHAVIOUR_DELETE:
-                return 2;
-        }
-        return 0;
+        return switch (uploadAction) {
+            case FileUploadWorker.LOCAL_BEHAVIOUR_FORGET -> 0;
+            case FileUploadWorker.LOCAL_BEHAVIOUR_MOVE -> 1;
+            case FileUploadWorker.LOCAL_BEHAVIOUR_DELETE -> 2;
+            default -> 0;
+        };
     }
 
     public void setUploadAction(String uploadAction) {

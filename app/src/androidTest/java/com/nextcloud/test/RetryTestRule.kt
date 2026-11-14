@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.test
 
@@ -25,11 +25,8 @@ class RetryTestRule(val retryCount: Int = defaultRetryValue) : TestRule {
         private val defaultRetryValue: Int = if (BuildConfig.CI) 5 else 1
     }
 
-    override fun apply(base: Statement, description: Description): Statement {
-        return statement(base, description)
-    }
+    override fun apply(base: Statement, description: Description): Statement = statement(base, description)
 
-    @Suppress("TooGenericExceptionCaught") // and this exactly what we want here
     private fun statement(base: Statement, description: Description): Statement {
         return object : Statement() {
 

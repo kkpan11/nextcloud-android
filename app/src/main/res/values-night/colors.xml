@@ -3,7 +3,7 @@
   ~ Nextcloud - Android Client
   ~
   ~ SPDX-FileCopyrightText: 2019 Daniel Bailey <daniel.bailey@grappleit.co.uk>
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <resources>
 
@@ -11,11 +11,13 @@
     <color name="text_color_inverse">#000000</color>
     <color name="disabled_text">#ff6F6F6F</color>
     <color name="secondary_text_color">#A5A5A5</color>
-    <color name="list_divider_background">#222222</color>
+    <color name="list_divider_background">#49454F</color>
+    <color name="task_container">#222222</color>
 
     <!-- Colors -->
     <color name="dark">#ffffff</color>
     <color name="bg_default">#121212</color>
+    <color name="media_placeholder_background">#2C2C2C</color>
     <color name="primary_button_text_color">#000000</color>
     <color name="grey_200">#818181</color>
     <color name="nc_grey">#222222</color>
@@ -36,4 +38,6 @@
     <!-- App bar -->
     <color name="appbar">#1E1E1E</color>
     <color name="fontAppbar">@android:color/white</color>
+
+    <color name="bg_message_bubble">#2A2A2A</color>
 </resources>

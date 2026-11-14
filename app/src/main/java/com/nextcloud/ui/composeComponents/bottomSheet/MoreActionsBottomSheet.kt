@@ -1,8 +1,8 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper_ozturk@proton.me>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.ui.composeComponents.bottomSheet
 
@@ -37,18 +37,15 @@ import kotlinx.coroutines.launch
 @SuppressLint("ResourceAsColor")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MoreActionsBottomSheet(
-    title: String? = null,
-    actions: List<Triple<Int, Int, () -> Unit>>,
-    dismiss: () -> Unit
-) {
+fun MoreActionsBottomSheet(title: String? = null, actions: List<Triple<Int, Int, () -> Unit>>, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         modifier = Modifier.padding(top = 32.dp),
+        containerColor = colorScheme.surface,
         onDismissRequest = {
-            dismiss()
+            onDismiss()
         },
         sheetState = sheetState
     ) {
@@ -76,8 +73,8 @@ fun MoreActionsBottomSheet(
                                 .launch { sheetState.hide() }
                                 .invokeOnCompletion {
                                     if (!sheetState.isVisible) {
+                                        onDismiss()
                                         action.third()
-                                        dismiss()
                                     }
                                 }
                         }

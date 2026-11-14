@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.datamodel;
 
@@ -50,12 +50,11 @@ abstract public class FileDataStorageManagerIT extends AbstractOnServerIT {
         // make sure everything is removed
         sut.deleteAllFiles();
         sut.deleteVirtuals(VirtualFolderType.GALLERY);
-
         assertEquals(0, sut.getAllFiles().size());
-
-        capability = (OCCapability) new GetCapabilitiesRemoteOperation(null)
-            .execute(client)
-            .getSingleData();
+        final var result = new GetCapabilitiesRemoteOperation(null)
+            .execute(client);
+        assertTrue(result.isSuccess());
+        capability = result.getResultData();
     }
 
     @After
@@ -354,5 +353,4 @@ abstract public class FileDataStorageManagerIT extends AbstractOnServerIT {
 
         assertEquals(capability.getUserStatus(), newCapability.getUserStatus());
     }
-
 }

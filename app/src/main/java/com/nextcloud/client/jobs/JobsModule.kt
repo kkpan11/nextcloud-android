@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
@@ -27,9 +27,7 @@ class JobsModule {
             .build()
 
         val contextWrapper = object : ContextWrapper(context) {
-            override fun getApplicationContext(): Context {
-                return this
-            }
+            override fun getApplicationContext(): Context = this
         }
 
         WorkManager.initialize(contextWrapper, configuration)
@@ -42,7 +40,5 @@ class JobsModule {
         workManager: WorkManager,
         clock: Clock,
         preferences: AppPreferences
-    ): BackgroundJobManager {
-        return BackgroundJobManagerImpl(workManager, clock, preferences)
-    }
+    ): BackgroundJobManager = BackgroundJobManagerImpl(workManager, clock, preferences)
 }

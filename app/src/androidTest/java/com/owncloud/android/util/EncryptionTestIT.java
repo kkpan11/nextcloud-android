@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2017 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2017 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.util;
 
@@ -25,7 +25,9 @@ import com.owncloud.android.datamodel.e2e.v1.decrypted.Encrypted;
 import com.owncloud.android.datamodel.e2e.v1.encrypted.EncryptedFolderMetadataFileV1;
 import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.lib.resources.e2ee.CsrHelper;
+import com.owncloud.android.ui.dialog.setupEncryption.EncryptionKeyGenerator;
 import com.owncloud.android.utils.EncryptionUtils;
+import com.owncloud.android.utils.crypto.CryptoHelper;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -44,7 +46,6 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -57,7 +58,6 @@ import javax.crypto.Cipher;
 import static com.owncloud.android.utils.EncryptionUtils.decodeStringToBase64Bytes;
 import static com.owncloud.android.utils.EncryptionUtils.decryptFile;
 import static com.owncloud.android.utils.EncryptionUtils.decryptFolderMetaData;
-import static com.owncloud.android.utils.EncryptionUtils.decryptPrivateKey;
 import static com.owncloud.android.utils.EncryptionUtils.decryptStringAsymmetric;
 import static com.owncloud.android.utils.EncryptionUtils.decryptStringSymmetric;
 import static com.owncloud.android.utils.EncryptionUtils.deserializeJSON;
@@ -76,6 +76,7 @@ import static com.owncloud.android.utils.EncryptionUtils.serializeJSON;
 import static com.owncloud.android.utils.EncryptionUtils.verifySHA512;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
@@ -149,12 +150,12 @@ public class EncryptionTestIT extends AbstractIT {
 
         byte[] key2 = decodeStringToBase64Bytes(decryptedString);
 
-        assertTrue(Arrays.equals(key1, key2));
+        assertArrayEquals(key1, key2);
     }
 
     @Test
     public void encryptStringAsymmetricCorrectPublicKey() throws Exception {
-        KeyPair keyPair = EncryptionUtils.generateKeyPair();
+        KeyPair keyPair = EncryptionKeyGenerator.generateKeyPair();
 
         byte[] key1 = generateKey();
         String base64encodedKey = encodeBytesToBase64String(key1);
@@ -164,13 +165,13 @@ public class EncryptionTestIT extends AbstractIT {
 
         byte[] key2 = decodeStringToBase64Bytes(decryptedString);
 
-        assertTrue(Arrays.equals(key1, key2));
+        assertArrayEquals(key1, key2);
     }
 
     @Test(expected = BadPaddingException.class)
     public void encryptStringAsymmetricWrongPublicKey() throws Exception {
-        KeyPair keyPair1 = EncryptionUtils.generateKeyPair();
-        KeyPair keyPair2 = EncryptionUtils.generateKeyPair();
+        KeyPair keyPair1 = EncryptionKeyGenerator.generateKeyPair();
+        KeyPair keyPair2 = EncryptionKeyGenerator.generateKeyPair();
 
         byte[] key1 = generateKey();
         String base64encodedKey = encodeBytesToBase64String(key1);
@@ -181,7 +182,7 @@ public class EncryptionTestIT extends AbstractIT {
 
     @Test
     public void testModulus() throws Exception {
-        KeyPair keyPair = EncryptionUtils.generateKeyPair();
+        KeyPair keyPair = EncryptionKeyGenerator.generateKeyPair();
         RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
         RSAPrivateCrtKey privateKey = (RSAPrivateCrtKey) keyPair.getPrivate();
 
@@ -261,13 +262,8 @@ public class EncryptionTestIT extends AbstractIT {
             byte[] privateKeyBytes = privateKey.getEncoded();
             String privateKeyString = encodeBytesToBase64String(privateKeyBytes);
 
-            String encryptedString;
-            if (new Random().nextBoolean()) {
-                encryptedString = EncryptionUtils.encryptPrivateKey(privateKeyString, keyPhrase);
-            } else {
-                encryptedString = EncryptionUtils.encryptPrivateKeyOld(privateKeyString, keyPhrase);
-            }
-            String decryptedString = decryptPrivateKey(encryptedString, keyPhrase);
+            String encryptedString = CryptoHelper.INSTANCE.encryptPrivateKey(privateKeyString, keyPhrase);
+            String decryptedString = CryptoHelper.INSTANCE.decryptPrivateKey(encryptedString, keyPhrase);
 
             assertEquals(privateKeyString, decryptedString);
         }
@@ -502,7 +498,7 @@ public class EncryptionTestIT extends AbstractIT {
 
         // de-serialize
         EncryptedFolderMetadataFileV1 encryptedFolderMetadata2 = deserializeJSON(encryptedJson,
-                                                                                 new TypeToken<EncryptedFolderMetadataFileV1>() {
+                                                                                 new TypeToken<>() {
                                                                                  });
 
         // decrypt
@@ -836,7 +832,7 @@ public class EncryptionTestIT extends AbstractIT {
 
         // Encryption
         Cipher encryptorCipher = EncryptionUtils.getCipher(Cipher.ENCRYPT_MODE, key, iv);
-        EncryptionUtils.encryptFile(file, encryptorCipher);
+        EncryptionUtils.encryptFile(user.getAccountName(), file, encryptorCipher);
         String encryptorCipherAuthTag = EncryptionUtils.getAuthenticationTag(encryptorCipher);
 
         // Decryption

@@ -6,7 +6,7 @@
  * SPDX-FileCopyrightText: 2019 Andy Scherzinger <info@andy-scherzinger>
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2014 Luke Owncloud <owncloud@ohrt.org>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.nextcloud.client.errorhandling
 
@@ -27,7 +27,6 @@ class ExceptionHandler(
     }
 
     override fun uncaughtException(thread: Thread, exception: Throwable) {
-        @Suppress("TooGenericExceptionCaught") // this is exactly what we want here
         try {
             val errorReport = generateErrorReport(formatException(thread, exception))
             val intent = Intent(context, ShowErrorActivity::class.java)

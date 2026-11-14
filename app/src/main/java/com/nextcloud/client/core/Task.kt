@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.core
 
@@ -12,7 +12,6 @@ import java.util.concurrent.atomic.AtomicBoolean
  * This is a wrapper for a task function running in background.
  * It executes task function and handles result or error delivery.
  */
-@Suppress("LongParameterList")
 internal class Task<T, P>(
     private val postResult: (Runnable) -> Boolean,
     private val removeFromQueue: (Runnable) -> Boolean,
@@ -20,7 +19,8 @@ internal class Task<T, P>(
     private val onSuccess: OnResultCallback<T>?,
     private val onError: OnErrorCallback?,
     private val onProgress: OnProgressCallback<P>?
-) : Runnable, Cancellable {
+) : Runnable,
+    Cancellable {
 
     val isCancelled: Boolean
         get() = cancelled.get()
@@ -31,7 +31,6 @@ internal class Task<T, P>(
         postResult(Runnable { onProgress?.invoke(p) })
     }
 
-    @Suppress("TooGenericExceptionCaught") // this is exactly what we want here
     override fun run() {
         try {
             val result = taskBody.invoke({ postProgress(it) }, this::isCancelled)

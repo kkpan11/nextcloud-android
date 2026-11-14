@@ -5,7 +5,7 @@
  * SPDX-FileCopyrightText: 2016-2017 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2014 David A. Velasco <dvelasco@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.operations;
 
@@ -70,7 +70,6 @@ public class DetectAuthenticationMethodOperation extends RemoteOperation {
      */
     @Override
     protected RemoteOperationResult run(OwnCloudClient client) {
-        RemoteOperationResult result = null;
         AuthenticationMethod authMethod = AuthenticationMethod.UNKNOWN;
 
         RemoteOperation operation = new ExistenceCheckRemoteOperation("", mContext, false);
@@ -78,7 +77,7 @@ public class DetectAuthenticationMethodOperation extends RemoteOperation {
         client.setFollowRedirects(false);
 
         // try to access the root folder, following redirections but not SAML SSO redirections
-        result = operation.execute(client);
+        RemoteOperationResult result = operation.execute(client);
         String redirectedLocation = result.getRedirectedLocation();
         while (!TextUtils.isEmpty(redirectedLocation) && !result.isIdPRedirection()) {
             client.setBaseUri(Uri.parse(result.getRedirectedLocation()));
@@ -119,18 +118,13 @@ public class DetectAuthenticationMethodOperation extends RemoteOperation {
     }
 
     private String authenticationMethodToString(AuthenticationMethod value) {
-        switch (value) {
-            case NONE:
-                return "NONE";
-            case BASIC_HTTP_AUTH:
-                return "BASIC_HTTP_AUTH";
-            case BEARER_TOKEN:
-                return "BEARER_TOKEN";
-            case SAML_WEB_SSO:
-                return "SAML_WEB_SSO";
-            default:
-                return "UNKNOWN";
-        }
+        return switch (value) {
+            case NONE -> "NONE";
+            case BASIC_HTTP_AUTH -> "BASIC_HTTP_AUTH";
+            case BEARER_TOKEN -> "BEARER_TOKEN";
+            case SAML_WEB_SSO -> "SAML_WEB_SSO";
+            default -> "UNKNOWN";
+        };
     }
 
 }

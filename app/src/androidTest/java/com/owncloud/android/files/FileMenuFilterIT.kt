@@ -1,16 +1,15 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2022 Álvaro Brey Vilas
+ * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 package com.owncloud.android.files
 
 import androidx.test.core.app.launchActivity
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.nextcloud.client.account.User
-import com.nextcloud.client.jobs.download.FileDownloadWorker
 import com.nextcloud.client.jobs.upload.FileUploadHelper
 import com.nextcloud.test.TestActivity
 import com.nextcloud.utils.EditorUtils
@@ -49,9 +48,6 @@ class FileMenuFilterIT : AbstractIT() {
     private lateinit var mockFileUploaderBinder: FileUploadHelper
 
     @MockK
-    private lateinit var mockFileDownloadProgressListener: FileDownloadWorker.FileDownloadProgressListener
-
-    @MockK
     private lateinit var mockOperationsServiceBinder: OperationsService.OperationsServiceBinder
 
     @MockK
@@ -64,12 +60,11 @@ class FileMenuFilterIT : AbstractIT() {
         MockKAnnotations.init(this)
         every { mockFileUploaderBinder.isUploading(any(), any()) } returns false
         every { mockComponentsGetter.fileUploaderHelper } returns mockFileUploaderBinder
-        every { mockFileDownloadProgressListener.isDownloading(any(), any()) } returns false
-        every { mockComponentsGetter.fileDownloadProgressListener } returns mockFileDownloadProgressListener
         every { mockOperationsServiceBinder.isSynchronizing(any(), any()) } returns false
         every { mockComponentsGetter.operationsServiceBinder } returns mockOperationsServiceBinder
         every { mockStorageManager.getFileById(any()) } returns OCFile("/")
         every { mockStorageManager.getFolderContent(any(), any()) } returns ArrayList<OCFile>()
+        every { mockStorageManager.isReadOnly(any()) } returns false
         every { mockArbitraryDataProvider.getValue(any<User>(), any()) } returns ""
         editorUtils = EditorUtils(mockArbitraryDataProvider)
     }
@@ -331,10 +326,97 @@ class FileMenuFilterIT : AbstractIT() {
         }
     }
 
-    private data class ExpectedLockVisibilities(
-        val lockFile: Boolean,
-        val unlockFile: Boolean
-    )
+    @Test
+    fun filter_openWithOnlyOffice_onlyForDownloadedFiles() {
+        every {
+            mockArbitraryDataProvider.getValue(any<User>(), ArbitraryDataProvider.DIRECT_EDITING)
+        } returns ONLYOFFICE_DIRECT_EDITING_JSON
+
+        configureCapability(OCCapability())
+
+        val downloadedFile = OCFile("/downloaded.docx").apply {
+            mimeType = OFFICE_MIMETYPE
+            storagePath = getDummyFile("downloaded.docx").absolutePath
+        }
+        val onlineOnlyFile = OCFile("/online.docx").apply {
+            mimeType = OFFICE_MIMETYPE
+        }
+
+        launchActivity<TestActivity>().use {
+            it.onActivity { activity ->
+                val filterFactory = FileMenuFilter.Factory(mockStorageManager, activity, editorUtils)
+
+                val downloadedToHide = filterFactory
+                    .newInstance(downloadedFile, mockComponentsGetter, true, user)
+                    .getToHide(false)
+                assertFalse(downloadedToHide.contains(R.id.action_open_in_web_editor))
+
+                val onlineToHide = filterFactory
+                    .newInstance(onlineOnlyFile, mockComponentsGetter, true, user)
+                    .getToHide(false)
+                assertTrue(onlineToHide.contains(R.id.action_open_in_web_editor))
+            }
+        }
+    }
+
+    @Test
+    fun filter_readOnlyFile_hidesModifyingActions() {
+        configureCapability(
+            OCCapability().apply {
+                endToEndEncryption = CapabilityBooleanType.TRUE
+                filesLockingVersion = "1.0"
+            }
+        )
+
+        every { mockStorageManager.isReadOnly(any()) } returns true
+
+        val file = OCFile("/readOnly.txt").apply {
+            permissions = FULL_PERMISSIONS
+        }
+
+        launchActivity<TestActivity>().use {
+            it.onActivity { activity ->
+                val filterFactory = FileMenuFilter.Factory(mockStorageManager, activity, editorUtils)
+
+                val toHide = filterFactory
+                    .newInstance(file, mockComponentsGetter, true, user)
+                    .getToHide(false)
+
+                READ_ONLY_HIDDEN_ACTIONS.forEach { action ->
+                    assertTrue(toHide.contains(action))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun filter_writableFile_keepsModifyingActions() {
+        configureCapability(
+            OCCapability().apply {
+                filesLockingVersion = "1.0"
+            }
+        )
+
+        val file = OCFile("/writable.txt").apply {
+            permissions = FULL_PERMISSIONS
+        }
+
+        launchActivity<TestActivity>().use {
+            it.onActivity { activity ->
+                val filterFactory = FileMenuFilter.Factory(mockStorageManager, activity, editorUtils)
+
+                val toHide = filterFactory
+                    .newInstance(file, mockComponentsGetter, true, user)
+                    .getToHide(false)
+
+                WRITABLE_VISIBLE_ACTIONS.forEach { action ->
+                    assertFalse(toHide.contains(action))
+                }
+            }
+        }
+    }
+
+    private data class ExpectedLockVisibilities(val lockFile: Boolean, val unlockFile: Boolean)
 
     private fun configureCapability(capability: OCCapability) {
         every { mockStorageManager.getCapability(any<User>()) } returns capability
@@ -366,5 +448,49 @@ class FileMenuFilterIT : AbstractIT() {
                 )
             }
         }
+    }
+
+    companion object {
+        private const val FULL_PERMISSIONS = "RGDNVW"
+
+        private val READ_ONLY_HIDDEN_ACTIONS = listOf(
+            R.id.action_remove_file,
+            R.id.action_rename_file,
+            R.id.action_move_or_copy,
+            R.id.action_edit,
+            R.id.action_encrypted,
+            R.id.action_unset_encrypted,
+            R.id.action_lock_file,
+            R.id.action_unlock_file,
+            R.id.action_favorite,
+            R.id.action_unset_favorite
+        )
+
+        private val WRITABLE_VISIBLE_ACTIONS = listOf(
+            R.id.action_remove_file,
+            R.id.action_rename_file,
+            R.id.action_move_or_copy,
+            R.id.action_lock_file,
+            R.id.action_favorite
+        )
+
+        private const val OFFICE_MIMETYPE =
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+        private val ONLYOFFICE_DIRECT_EDITING_JSON =
+            """
+            {
+              "editors": {
+                "onlyoffice": {
+                  "id": "onlyoffice",
+                  "name": "OnlyOffice",
+                  "mimetypes": [],
+                  "optionalMimetypes": ["$OFFICE_MIMETYPE"],
+                  "secure": false
+                }
+              },
+              "creators": {}
+            }
+            """.trimIndent()
     }
 }

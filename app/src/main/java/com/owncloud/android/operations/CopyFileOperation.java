@@ -5,7 +5,7 @@
  * SPDX-FileCopyrightText: 2019 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2012-2014 ownCloud Inc.
  * SPDX-FileCopyrightText: 2014 Jorge Antonio Diaz-Benito Soriano <jorge.diazbenitosoriano@gmail.com>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.operations;
 
@@ -64,6 +64,19 @@ public class CopyFileOperation extends SyncOperation {
         if (file.isFolder()) {
             targetPath += OCFile.PATH_SEPARATOR;
         }
+        
+        // auto rename, to allow copy
+        if (targetPath.equals(srcPath)) {
+            if (file.isFolder()) {
+                targetPath = targetParentPath + file.getFileName();
+            }
+            targetPath = UploadFileOperation.getNewAvailableRemotePath(client, targetPath, null, false);
+
+            if (file.isFolder()) {
+                targetPath += OCFile.PATH_SEPARATOR;
+            }
+        }
+        
         RemoteOperationResult result = new CopyFileRemoteOperation(srcPath, targetPath, false).execute(client);
 
         /// 3. local copy

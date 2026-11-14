@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.trashbin
 
@@ -11,7 +11,7 @@ import com.owncloud.android.R
 import com.owncloud.android.lib.resources.trashbin.model.TrashbinFile
 import com.owncloud.android.ui.trashbin.TrashbinRepository.LoadFolderCallback
 
-class TrashbinLocalRepository(private val testCase: TrashbinActivityIT.TestCase) : TrashbinRepository {
+class TrashbinLocalRepository(private val testCase: TrashbinFragmentIT.TestCase) : TrashbinRepository {
     override fun emptyTrashbin(callback: TrashbinRepository.OperationCallback?) {
         TODO("Not yet implemented")
     }
@@ -27,8 +27,9 @@ class TrashbinLocalRepository(private val testCase: TrashbinActivityIT.TestCase)
     @Suppress("MagicNumber")
     override fun getFolder(remotePath: String?, callback: LoadFolderCallback?) {
         when (testCase) {
-            TrashbinActivityIT.TestCase.ERROR -> callback?.onError(R.string.trashbin_loading_failed)
-            TrashbinActivityIT.TestCase.FILES -> {
+            TrashbinFragmentIT.TestCase.ERROR -> callback?.onError(R.string.trashbin_loading_failed)
+
+            TrashbinFragmentIT.TestCase.FILES -> {
                 val files = ArrayList<TrashbinFile>()
                 files.add(
                     TrashbinFile(
@@ -36,8 +37,10 @@ class TrashbinLocalRepository(private val testCase: TrashbinActivityIT.TestCase)
                         "image/png",
                         "/trashbin/test.png",
                         "subFolder/test.png",
-                        1395847838, // random date
-                        1395847908 // random date
+                        // random date
+                        1395847838,
+                        // random date
+                        1395847908
                     )
                 )
                 files.add(
@@ -46,8 +49,10 @@ class TrashbinLocalRepository(private val testCase: TrashbinActivityIT.TestCase)
                         "image/jpeg",
                         "/trashbin/image.jpg",
                         "image.jpg",
-                        1395841858, // random date
-                        1395837858 // random date
+                        // random date
+                        1395841858,
+                        // random date
+                        1395837858
                     )
                 )
                 files.add(
@@ -56,14 +61,17 @@ class TrashbinLocalRepository(private val testCase: TrashbinActivityIT.TestCase)
                         "DIR",
                         "/trashbin/folder/",
                         "folder",
-                        1395347858, // random date
-                        1395849858 // random date
+                        // random date
+                        1395347858,
+                        // random date
+                        1395849858
                     )
                 )
 
                 callback?.onSuccess(files)
             }
-            TrashbinActivityIT.TestCase.EMPTY -> callback?.onSuccess(ArrayList<TrashbinFile>())
+
+            TrashbinFragmentIT.TestCase.EMPTY -> callback?.onSuccess(ArrayList<TrashbinFile>())
         }
     }
 }

@@ -3,14 +3,13 @@
  *
  * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.di
 
 import com.nextcloud.android.common.ui.theme.MaterialSchemes
 import com.owncloud.android.utils.theme.MaterialSchemesProvider
 import com.owncloud.android.utils.theme.MaterialSchemesProviderImpl
-import com.owncloud.android.utils.theme.ThemeColorUtils
 import com.owncloud.android.utils.theme.ThemeUtils
 import dagger.Binds
 import dagger.Module
@@ -27,19 +26,10 @@ internal abstract class ThemeModule {
 
         @Provides
         @Singleton
-        fun themeColorUtils(): ThemeColorUtils {
-            return ThemeColorUtils()
-        }
+        fun themeUtils(): ThemeUtils = ThemeUtils()
 
         @Provides
-        @Singleton
-        fun themeUtils(): ThemeUtils {
-            return ThemeUtils()
-        }
-
-        @Provides
-        fun provideMaterialSchemes(materialSchemesProvider: MaterialSchemesProvider): MaterialSchemes {
-            return materialSchemesProvider.getMaterialSchemesForCurrentUser()
-        }
+        fun provideMaterialSchemes(materialSchemesProvider: MaterialSchemesProvider): MaterialSchemes =
+            materialSchemesProvider.getMaterialSchemesForCurrentUser()
     }
 }

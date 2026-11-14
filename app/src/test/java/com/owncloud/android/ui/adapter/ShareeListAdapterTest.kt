@@ -3,13 +3,16 @@
  *
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.adapter
 
 import android.content.Context
 import android.content.res.Resources
 import com.nextcloud.client.account.AnonymousUser
+import com.nextcloud.client.account.User
+import com.nextcloud.utils.avatar.AvatarGenerator
+import com.owncloud.android.datamodel.SharesType
 import com.owncloud.android.lib.resources.shares.OCShare
 import com.owncloud.android.lib.resources.shares.ShareType
 import com.owncloud.android.ui.activity.FileActivity
@@ -32,16 +35,16 @@ class ShareeListAdapterTest {
 
     private val orderedShares = listOf(
         OCShare("/1").apply {
-            shareType = ShareType.EMAIL
-            sharedDate = 1004
-        },
-        OCShare("/2").apply {
             shareType = ShareType.PUBLIC_LINK
             sharedDate = 1003
         },
-        OCShare("/3").apply {
+        OCShare("/2").apply {
             shareType = ShareType.PUBLIC_LINK
             sharedDate = 1001
+        },
+        OCShare("/3").apply {
+            shareType = ShareType.EMAIL
+            sharedDate = 1004
         },
         OCShare("/4").apply {
             shareType = ShareType.EMAIL
@@ -69,12 +72,23 @@ class ShareeListAdapterTest {
 
         val sut = ShareeListAdapter(
             fileActivity,
-            randomOrder,
-            null,
+            ArrayList(randomOrder),
+            object : ShareeListAdapterListener {
+                override fun copyLink(share: OCShare?) = Unit
+                override fun showSharingMenuActionSheet(share: OCShare?) = Unit
+                override fun copyInternalLink() = Unit
+                override fun createPublicShareLink() = Unit
+                override fun createSecureFileDrop() = Unit
+                override fun requestPasswordForShare(share: OCShare?, askForPassword: Boolean) = Unit
+                override fun showPermissionsDialog(share: OCShare?) = Unit
+                override fun showProfileBottomSheet(user: User?, shareWith: String?) = Unit
+            },
             user.accountName,
             user,
             viewThemeUtils,
-            false
+            false,
+            SharesType.INTERNAL,
+            Mockito.mock(AvatarGenerator::class.java)
         )
         sut.sortShares()
 
@@ -82,7 +96,7 @@ class ShareeListAdapterTest {
         assertSort(sut.shares)
     }
 
-    private fun assertSort(shares: MutableList<OCShare>) {
+    private fun assertSort(shares: List<OCShare>) {
         var compare = true
         var i = 0
         while (i < orderedShares.size && compare) {

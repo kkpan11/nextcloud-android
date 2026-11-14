@@ -2,13 +2,13 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2018-2023 Tobias Kaminsky <tobias@kaminsky.me>
- * SPDX-FileCopyrightText: 2021 TSI-mc
+ * SPDX-FileCopyrightText: 2021-2026 TSI-mc <surinder.kumar@t-systems.com>
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2017-2018 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2015 María Asensio Valverde <masensio@solidgear.es>
  * SPDX-FileCopyrightText: 2014 David A. Velasco <dvelasco@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.services;
 
@@ -29,6 +29,7 @@ import android.util.Pair;
 
 import com.nextcloud.client.account.User;
 import com.nextcloud.client.account.UserAccountManager;
+import com.nextcloud.common.NextcloudClient;
 import com.nextcloud.utils.extensions.IntentExtensionsKt;
 import com.owncloud.android.MainApp;
 import com.owncloud.android.datamodel.ArbitraryDataProvider;
@@ -41,6 +42,10 @@ import com.owncloud.android.lib.common.operations.OnRemoteOperationListener;
 import com.owncloud.android.lib.common.operations.RemoteOperation;
 import com.owncloud.android.lib.common.operations.RemoteOperationResult;
 import com.owncloud.android.lib.common.utils.Log_OC;
+import com.owncloud.android.lib.resources.albums.CreateNewAlbumRemoteOperation;
+import com.owncloud.android.lib.resources.albums.PublicShareLinkAlbumRemoteOperation;
+import com.owncloud.android.lib.resources.albums.RemoveAlbumRemoteOperation;
+import com.owncloud.android.lib.resources.albums.RenameAlbumRemoteOperation;
 import com.owncloud.android.lib.resources.files.RestoreFileVersionRemoteOperation;
 import com.owncloud.android.lib.resources.files.model.FileVersion;
 import com.owncloud.android.lib.resources.shares.OCShare;
@@ -55,6 +60,7 @@ import com.owncloud.android.operations.GetServerInfoOperation;
 import com.owncloud.android.operations.MoveFileOperation;
 import com.owncloud.android.operations.RemoveFileOperation;
 import com.owncloud.android.operations.RenameFileOperation;
+import com.owncloud.android.operations.SetFilesDownloadLimitOperation;
 import com.owncloud.android.operations.SynchronizeFileOperation;
 import com.owncloud.android.operations.SynchronizeFolderOperation;
 import com.owncloud.android.operations.UnshareOperation;
@@ -62,9 +68,9 @@ import com.owncloud.android.operations.UpdateNoteForShareOperation;
 import com.owncloud.android.operations.UpdateShareInfoOperation;
 import com.owncloud.android.operations.UpdateSharePermissionsOperation;
 import com.owncloud.android.operations.UpdateShareViaLinkOperation;
+import com.owncloud.android.operations.albums.CopyFileToAlbumOperation;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -80,9 +86,12 @@ public class OperationsService extends Service {
 
     private static final String TAG = OperationsService.class.getSimpleName();
 
+    public static final String EXTRA_ENCRYPTED = "ENCRYPTED";
     public static final String EXTRA_ACCOUNT = "ACCOUNT";
+    public static final String EXTRA_POST_DIALOG_EVENT = "EXTRA_POST_DIALOG_EVENT";
     public static final String EXTRA_SERVER_URL = "SERVER_URL";
     public static final String EXTRA_REMOTE_PATH = "REMOTE_PATH";
+    public static final String EXTRA_SYNC_ALL = "SYNC_ALL";
     public static final String EXTRA_NEWNAME = "NEWNAME";
     public static final String EXTRA_REMOVE_ONLY_LOCAL = "REMOVE_LOCAL_COPY";
     public static final String EXTRA_SYNC_FILE_CONTENTS = "SYNC_FILE_CONTENTS";
@@ -97,8 +106,12 @@ public class OperationsService extends Service {
     public static final String EXTRA_SHARE_PUBLIC_LABEL = "SHARE_PUBLIC_LABEL";
     public static final String EXTRA_SHARE_HIDE_FILE_DOWNLOAD = "HIDE_FILE_DOWNLOAD";
     public static final String EXTRA_SHARE_ID = "SHARE_ID";
+    public static final String EXTRA_SHARE_REMOTE_ID = "SHARE_REMOTE_ID";
     public static final String EXTRA_SHARE_NOTE = "SHARE_NOTE";
     public static final String EXTRA_IN_BACKGROUND = "IN_BACKGROUND";
+    public static final String EXTRA_FILES_DOWNLOAD_LIMIT = "FILES_DOWNLOAD_LIMIT";
+    public static final String EXTRA_SHARE_ATTRIBUTES = "SHARE_ATTRIBUTES";
+    public static final String EXTRA_CREATE_ALBUM_SHARE = "CREATE_ALBUM_SHARE";
 
     public static final String ACTION_CREATE_SHARE_VIA_LINK = "CREATE_SHARE_VIA_LINK";
     public static final String ACTION_CREATE_SECURE_FILE_DROP = "CREATE_SECURE_FILE_DROP";
@@ -119,6 +132,13 @@ public class OperationsService extends Service {
     public static final String ACTION_COPY_FILE = "COPY_FILE";
     public static final String ACTION_CHECK_CURRENT_CREDENTIALS = "CHECK_CURRENT_CREDENTIALS";
     public static final String ACTION_RESTORE_VERSION = "RESTORE_VERSION";
+    public static final String ACTION_UPDATE_FILES_DOWNLOAD_LIMIT = "UPDATE_FILES_DOWNLOAD_LIMIT";
+    public static final String ACTION_CREATE_ALBUM = "CREATE_ALBUM";
+    public static final String EXTRA_ALBUM_NAME = "ALBUM_NAME";
+    public static final String ACTION_ALBUM_COPY_FILE = "ALBUM_COPY_FILE";
+    public static final String ACTION_RENAME_ALBUM = "RENAME_ALBUM";
+    public static final String ACTION_REMOVE_ALBUM = "REMOVE_ALBUM";
+    public static final String ACTION_PUBLIC_SHARE_LINK_ALBUM = "PUBLIC_SHARE_LINK_ALBUM";
 
     private ServiceHandler mOperationsHandler;
     private OperationsServiceBinder mOperationsBinder;
@@ -260,7 +280,7 @@ public class OperationsService extends Service {
          */
         private final ConcurrentMap<OnRemoteOperationListener, Handler> mBoundListeners = new ConcurrentHashMap<>();
 
-        private ServiceHandler mServiceHandler;
+        private final ServiceHandler mServiceHandler;
 
         public OperationsServiceBinder(ServiceHandler serviceHandler) {
             mServiceHandler = serviceHandler;
@@ -380,7 +400,7 @@ public class OperationsService extends Service {
         OperationsService mService;
 
 
-        private ConcurrentLinkedQueue<Pair<Target, RemoteOperation>> mPendingOperations =
+        private final ConcurrentLinkedQueue<Pair<Target, RemoteOperation>> mPendingOperations =
             new ConcurrentLinkedQueue<>();
         private RemoteOperation mCurrentOperation;
         private Target mLastTarget;
@@ -416,11 +436,12 @@ public class OperationsService extends Service {
             if (next != null) {
                 mCurrentOperation = next.second;
                 RemoteOperationResult result;
+                OwnCloudAccount ocAccount = null;
+
                 try {
                     /// prepare client object to send the request to the ownCloud server
                     if (mLastTarget == null || !mLastTarget.equals(next.first)) {
                         mLastTarget = next.first;
-                        OwnCloudAccount ocAccount;
                         if (mLastTarget.mAccount != null) {
                             ocAccount = new OwnCloudAccount(mLastTarget.mAccount, mService);
                         } else {
@@ -430,9 +451,26 @@ public class OperationsService extends Service {
                             getClientFor(ocAccount, mService);
                     }
 
-                    /// perform the operation
-                    result = mCurrentOperation.execute(mOwnCloudClient);
-                } catch (AccountsException e) {
+                    // perform the operation
+                    try {
+                        result = mCurrentOperation.execute(mOwnCloudClient);
+                        if (!result.isSuccess()) {
+                            final var code = "code: " + result.getCode();
+                            final var httpCode = "HTTP_CODE: " + result.getHttpCode();
+                            Log_OC.e(TAG,"Operation failed " + code + httpCode);
+                        }
+                    } catch (UnsupportedOperationException e) {
+                        // TODO remove - added to aid in transition to NextcloudClient
+
+                        if (ocAccount == null) {
+                            throw e;
+                        }
+
+                        NextcloudClient nextcloudClient = OwnCloudClientManagerFactory.getDefaultSingleton()
+                            .getNextcloudClientFor(ocAccount, mService.getBaseContext());
+                        result = mCurrentOperation.run(nextcloudClient);
+                    }
+                } catch (AccountsException | IOException e) {
                     if (mLastTarget.mAccount == null) {
                         Log_OC.e(TAG, "Error while trying to get authorization for a NULL account",
                                  e);
@@ -442,15 +480,6 @@ public class OperationsService extends Service {
                     }
                     result = new RemoteOperationResult(e);
 
-                } catch (IOException e) {
-                    if (mLastTarget.mAccount == null) {
-                        Log_OC.e(TAG, "Error while trying to get authorization for a NULL account",
-                                 e);
-                    } else {
-                        Log_OC.e(TAG, "Error while trying to get authorization for " +
-                            mLastTarget.mAccount.name, e);
-                    }
-                    result = new RemoteOperationResult(e);
                 } catch (Exception e) {
                     if (mLastTarget.mAccount == null) {
                         Log_OC.e(TAG, "Unexpected error for a NULL account", e);
@@ -537,10 +566,6 @@ public class OperationsService extends Service {
                                                                                        false);
                             updateLinkOperation.setHideFileDownload(hideFileDownload);
 
-//                            if (operationIntent.hasExtra(EXTRA_SHARE_PUBLIC_UPLOAD)) {
-//                                updateLinkOperation.setPublicUpload(true);
-//                            }
-
                             if (operationIntent.hasExtra(EXTRA_SHARE_PUBLIC_LABEL)) {
                                 updateLinkOperation.setLabel(operationIntent.getStringExtra(EXTRA_SHARE_PUBLIC_LABEL));
                             }
@@ -590,6 +615,8 @@ public class OperationsService extends Service {
                             .getLongExtra(EXTRA_SHARE_EXPIRATION_DATE_IN_MILLIS, 0L);
                         boolean hideFileDownload = operationIntent.getBooleanExtra(EXTRA_SHARE_HIDE_FILE_DOWNLOAD,
                                                                                    false);
+                        String attributes = operationIntent.getStringExtra(EXTRA_SHARE_ATTRIBUTES);
+
                         if (!TextUtils.isEmpty(remotePath)) {
                             CreateShareWithShareeOperation createShareWithShareeOperation =
                                 new CreateShareWithShareeOperation(remotePath,
@@ -600,6 +627,7 @@ public class OperationsService extends Service {
                                                                    sharePassword,
                                                                    expirationDateInMillis,
                                                                    hideFileDownload,
+                                                                   attributes,
                                                                    fileDataStorageManager,
                                                                    getApplicationContext(),
                                                                    user,
@@ -614,9 +642,11 @@ public class OperationsService extends Service {
 
                     case ACTION_UPDATE_SHARE_INFO:
                         shareId = operationIntent.getLongExtra(EXTRA_SHARE_ID, -1);
+                        long shareRemoteId = operationIntent.getLongExtra(EXTRA_SHARE_REMOTE_ID, -1);
 
-                        if (shareId > 0) {
+                        if (shareId > 0 || shareRemoteId > 0) {
                             UpdateShareInfoOperation updateShare = new UpdateShareInfoOperation(shareId,
+                                                                                                shareRemoteId,
                                                                                                 fileDataStorageManager);
 
                             int permissionsToChange = operationIntent.getIntExtra(EXTRA_SHARE_PERMISSIONS, -1);
@@ -637,6 +667,9 @@ public class OperationsService extends Service {
                             if (operationIntent.hasExtra(EXTRA_SHARE_PUBLIC_LABEL)) {
                                 updateShare.setLabel(operationIntent.getStringExtra(EXTRA_SHARE_PUBLIC_LABEL));
                             }
+
+                            String shareAttributes = operationIntent.getStringExtra(EXTRA_SHARE_ATTRIBUTES);
+                            updateShare.setAttributes(shareAttributes);
 
                             operation = updateShare;
                         }
@@ -672,6 +705,11 @@ public class OperationsService extends Service {
                     case ACTION_REMOVE:
                         // Remove file or folder
                         OCFile file = IntentExtensionsKt.getParcelableArgument(operationIntent, EXTRA_FILE, OCFile.class);
+                        if (file == null) {
+                            Log_OC.w(TAG, "file is null cannot remove file");
+                            break;
+                        }
+
                         boolean onlyLocalCopy = operationIntent.getBooleanExtra(EXTRA_REMOVE_ONLY_LOCAL, false);
                         boolean inBackground = operationIntent.getBooleanExtra(EXTRA_IN_BACKGROUND, false);
                         operation = new RemoveFileOperation(file,
@@ -684,30 +722,43 @@ public class OperationsService extends Service {
 
                     case ACTION_CREATE_FOLDER:
                         remotePath = operationIntent.getStringExtra(EXTRA_REMOTE_PATH);
-                        operation = new CreateFolderOperation(remotePath,
-                                                              user,
-                                                              getApplicationContext(),
-                                                              fileDataStorageManager);
+                        boolean encrypt = operationIntent.getBooleanExtra(EXTRA_ENCRYPTED, false);
+                        final var createFolderOperation = new CreateFolderOperation(remotePath,
+                                                                                    user,
+                                                                                    getApplicationContext(),
+                                                                                    fileDataStorageManager);
+                        createFolderOperation.setEncrypt(encrypt);
+                        operation = createFolderOperation;
                         break;
 
                     case ACTION_SYNC_FILE:
                         remotePath = operationIntent.getStringExtra(EXTRA_REMOTE_PATH);
+                        boolean postDialogEvent = operationIntent.getBooleanExtra(EXTRA_POST_DIALOG_EVENT, true);
                         boolean syncFileContents = operationIntent.getBooleanExtra(EXTRA_SYNC_FILE_CONTENTS, true);
                         operation = new SynchronizeFileOperation(remotePath,
                                                                  user,
                                                                  syncFileContents,
                                                                  getApplicationContext(),
-                                                                 fileDataStorageManager);
+                                                                 fileDataStorageManager,
+                                                                 true,
+                                                                 postDialogEvent);
                         break;
 
                     case ACTION_SYNC_FOLDER:
                         remotePath = operationIntent.getStringExtra(EXTRA_REMOTE_PATH);
+                        boolean syncAll = operationIntent.getBooleanExtra(EXTRA_SYNC_ALL, false);
+
+                        // since this is triggered from service and can run in background no need to fire
+                        // workers for each sub file
+                        boolean useWorkerWithNotification = !syncAll;
+
                         operation = new SynchronizeFolderOperation(
-                            this,                       // TODO remove this dependency from construction time
+                            this,
                             remotePath,
                             user,
-                            System.currentTimeMillis(),  // TODO remove this dependency from construction time
-                            fileDataStorageManager
+                            fileDataStorageManager,
+                            useWorkerWithNotification,
+                            syncAll
                         );
                         break;
 
@@ -729,8 +780,50 @@ public class OperationsService extends Service {
 
                     case ACTION_RESTORE_VERSION:
                         FileVersion fileVersion = IntentExtensionsKt.getParcelableArgument(operationIntent, EXTRA_FILE_VERSION, FileVersion.class);
+                        if (fileVersion == null) {
+                            Log_OC.w(TAG, "file version is null cannot restore file");
+                            break;
+                        }
+
                         operation = new RestoreFileVersionRemoteOperation(fileVersion.getLocalId(),
                                                                           fileVersion.getFileName());
+                        break;
+
+                    case ACTION_UPDATE_FILES_DOWNLOAD_LIMIT:
+                        shareId = operationIntent.getLongExtra(EXTRA_SHARE_ID, -1);
+                        int newLimit = operationIntent.getIntExtra(EXTRA_FILES_DOWNLOAD_LIMIT, -1);
+
+                        if (shareId > 0) {
+                            operation = new SetFilesDownloadLimitOperation(shareId, newLimit, fileDataStorageManager, getApplicationContext());
+                        }
+                        break;
+
+                    case ACTION_CREATE_ALBUM:
+                        String albumName = operationIntent.getStringExtra(EXTRA_ALBUM_NAME);
+                        operation = new CreateNewAlbumRemoteOperation(albumName);
+                        break;
+
+                    case ACTION_ALBUM_COPY_FILE:
+                        remotePath = operationIntent.getStringExtra(EXTRA_REMOTE_PATH);
+                        newParentPath = operationIntent.getStringExtra(EXTRA_NEW_PARENT_PATH);
+                        operation = new CopyFileToAlbumOperation(remotePath, newParentPath, fileDataStorageManager);
+                        break;
+
+                    case ACTION_RENAME_ALBUM:
+                        remotePath = operationIntent.getStringExtra(EXTRA_REMOTE_PATH);
+                        String newAlbumName = operationIntent.getStringExtra(EXTRA_NEWNAME);
+                        operation = new RenameAlbumRemoteOperation(remotePath, newAlbumName);
+                        break;
+
+                    case ACTION_REMOVE_ALBUM:
+                        String albumNameToRemove = operationIntent.getStringExtra(EXTRA_ALBUM_NAME);
+                        operation = new RemoveAlbumRemoteOperation(albumNameToRemove);
+                        break;
+
+                    case ACTION_PUBLIC_SHARE_LINK_ALBUM:
+                        String albmName = operationIntent.getStringExtra(EXTRA_ALBUM_NAME);
+                        boolean isCreateShare = operationIntent.getBooleanExtra(EXTRA_CREATE_ALBUM_SHARE, false);
+                        operation = new PublicShareLinkAlbumRemoteOperation(albmName, isCreateShare);
                         break;
 
                     default:
@@ -774,23 +867,24 @@ public class OperationsService extends Service {
      * @param operation Finished operation.
      * @param result    Result of the operation.
      */
-    protected void dispatchResultToOperationListeners(
-        final RemoteOperation operation, final RemoteOperationResult result
-                                                     ) {
+    protected void dispatchResultToOperationListeners(final RemoteOperation operation, final RemoteOperationResult result) {
         int count = 0;
-        Iterator<OnRemoteOperationListener> listeners = mOperationsBinder.mBoundListeners.keySet().iterator();
-        while (listeners.hasNext()) {
-            final OnRemoteOperationListener listener = listeners.next();
-            final Handler handler = mOperationsBinder.mBoundListeners.get(listener);
-            if (handler != null) {
-                handler.post(() -> listener.onRemoteOperationFinish(operation, result));
-                count += 1;
+
+        if (mOperationsBinder != null) {
+            for (OnRemoteOperationListener listener : mOperationsBinder.mBoundListeners.keySet()) {
+                final Handler handler = mOperationsBinder.mBoundListeners.get(listener);
+                if (handler != null) {
+                    handler.post(() -> listener.onRemoteOperationFinish(operation, result));
+                    count += 1;
+                }
             }
         }
+
         if (count == 0) {
             Pair<RemoteOperation, RemoteOperationResult> undispatched = new Pair<>(operation, result);
             mUndispatchedFinishedOperations.put(operation.hashCode(), undispatched);
         }
+
         Log_OC.d(TAG, "Called " + count + " listeners");
     }
 }

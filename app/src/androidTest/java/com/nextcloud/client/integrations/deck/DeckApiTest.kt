@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.integrations.deck
 
@@ -65,9 +65,7 @@ class DeckApiTest {
         companion object {
             @Parameterized.Parameters
             @JvmStatic
-            fun initParametrs(): Array<String> {
-                return DeckApiImpl.DECK_APP_PACKAGES
-            }
+            fun initParametrs(): Array<String> = DeckApiImpl.DECK_APP_PACKAGES
         }
 
         @Before

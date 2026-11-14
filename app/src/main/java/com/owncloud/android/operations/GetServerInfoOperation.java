@@ -6,13 +6,13 @@
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2015 María Asensio Valverde <masensio@solidgear.es>
  * SPDX-FileCopyrightText: 2014 David A. Velasco <dvelasco@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.operations;
 
 import android.content.Context;
 
-import com.owncloud.android.authentication.AuthenticatorUrlUtils;
+import com.owncloud.android.authentication.server.AuthenticatorUrlUtils;
 import com.owncloud.android.lib.common.OwnCloudClient;
 import com.owncloud.android.lib.common.operations.RemoteOperation;
 import com.owncloud.android.lib.common.operations.RemoteOperationResult;
@@ -46,7 +46,7 @@ public class GetServerInfoOperation extends RemoteOperation {
      *                          TODO ugly dependency, get rid of it.
      */
     public GetServerInfoOperation(String url, Context context) {
-        mUrl = trimWebdavSuffix(url);
+        mUrl = AuthenticatorUrlUtils.INSTANCE.trimWebdavSuffix(url);
         mContext = context;
         mResultData = new ServerInfo();
     }
@@ -77,7 +77,7 @@ public class GetServerInfoOperation extends RemoteOperation {
             // third: merge results
             if (detectAuthResult.isSuccess()) {
                 mResultData.mAuthMethod = (AuthenticationMethod) detectAuthResult.getData().get(0);
-                ArrayList<Object> data = new ArrayList<Object>();
+                ArrayList<Object> data = new ArrayList<>();
                 data.add(mResultData);
                 result.setData(data);
             } else {
@@ -94,24 +94,6 @@ public class GetServerInfoOperation extends RemoteOperation {
                 new DetectAuthenticationMethodOperation(mContext);
         return operation.execute(client);
     }
-
-
-    private String trimWebdavSuffix(String url) {
-	    String trimmedUrl = url;
-        if (trimmedUrl == null) {
-            trimmedUrl = "";
-        } else {
-            if (trimmedUrl.endsWith("/")) {
-                trimmedUrl = trimmedUrl.substring(0, trimmedUrl.length() - 1);
-            }
-            if (trimmedUrl.toLowerCase(Locale.ROOT).endsWith(AuthenticatorUrlUtils.WEBDAV_PATH_4_0_AND_LATER)) {
-                trimmedUrl = trimmedUrl.substring(0,
-                        trimmedUrl.length() - AuthenticatorUrlUtils.WEBDAV_PATH_4_0_AND_LATER.length());
-            }
-        }
-        return trimmedUrl;
-    }
-
 
     private String normalizeProtocolPrefix(String url, boolean isSslConn) {
         if (!url.toLowerCase(Locale.ROOT).startsWith("http://") &&

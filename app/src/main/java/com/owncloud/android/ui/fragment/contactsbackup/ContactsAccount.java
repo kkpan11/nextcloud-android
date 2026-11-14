@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2021 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.fragment.contactsbackup;
 
@@ -24,8 +24,7 @@ public class ContactsAccount {
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof ContactsAccount) {
-            ContactsAccount other = (ContactsAccount) obj;
+        if (obj instanceof ContactsAccount other) {
             return this.name.equalsIgnoreCase(other.name) && this.type.equalsIgnoreCase(other.type);
         } else {
             return false;

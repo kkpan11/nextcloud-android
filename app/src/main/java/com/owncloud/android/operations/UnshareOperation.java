@@ -5,13 +5,14 @@
  * SPDX-FileCopyrightText: 2018 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2014 María Asensio Valverde <masensio@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.operations;
 
 import android.content.Context;
 
 import com.nextcloud.client.account.User;
+import com.nextcloud.utils.extensions.OCFileExtensionsKt;
 import com.owncloud.android.datamodel.FileDataStorageManager;
 import com.owncloud.android.datamodel.OCFile;
 import com.owncloud.android.datamodel.e2e.v1.decrypted.DecryptedFolderMetadataFileV1;
@@ -113,6 +114,8 @@ public class UnshareOperation extends SyncOperation {
 
             RemoveShareRemoteOperation operation = new RemoveShareRemoteOperation(share.getRemoteId());
             result = operation.execute(client);
+            boolean isFileExists = existsFile(client, file.getRemotePath());
+            boolean isShareExists = getStorageManager().getShareById(shareId) != null;
 
             if (result.isSuccess()) {
                 // E2E: unlock folder
@@ -128,7 +131,7 @@ public class UnshareOperation extends SyncOperation {
                 if (ShareType.PUBLIC_LINK == share.getShareType()) {
                     file.setSharedViaLink(false);
                 } else if (ShareType.USER == share.getShareType() || ShareType.GROUP == share.getShareType()
-                    || ShareType.FEDERATED == share.getShareType()) {
+                    || ShareType.FEDERATED == share.getShareType() || ShareType.FEDERATED_GROUP == share.getShareType()) {
                     // Check if it is the last share
                     List<OCShare> sharesWith = getStorageManager().
                         getSharesWithForAFile(remotePath,
@@ -136,14 +139,17 @@ public class UnshareOperation extends SyncOperation {
                     if (sharesWith.size() == SINGLY_SHARED) {
                         file.setSharedWithSharee(false);
                     }
+                    OCFileExtensionsKt.removeShare(file, share);
                 }
 
                 getStorageManager().saveFile(file);
                 getStorageManager().removeShare(share);
-
-            } else if (result.getCode() != ResultCode.MAINTENANCE_MODE && !existsFile(client, file.getRemotePath())) {
-                // unshare failed because file was deleted before
+            } else if (result.getCode() != ResultCode.MAINTENANCE_MODE && !isFileExists) {
+                // UnShare failed because file was deleted before
                 getStorageManager().removeFile(file, true, true);
+            } else if (isShareExists && result.getCode() == ResultCode.FILE_NOT_FOUND) {
+                // UnShare failed because share was deleted before
+                getStorageManager().removeShare(share);
             }
 
         } else {

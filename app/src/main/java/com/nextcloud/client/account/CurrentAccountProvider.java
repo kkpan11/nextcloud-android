@@ -2,14 +2,13 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account;
 
 import android.accounts.Account;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 /**
  * This interface provides access to currently selected user.
@@ -24,7 +23,7 @@ public interface CurrentAccountProvider {
      * @return Currently selected {@link Account} or first valid {@link Account} registered in OS or null, if not available at all.
      */
     @Deprecated
-    @Nullable
+    @NonNull
     Account getCurrentAccount();
 
     /**

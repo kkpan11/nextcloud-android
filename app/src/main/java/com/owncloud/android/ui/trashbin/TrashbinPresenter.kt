@@ -1,9 +1,10 @@
 /*
  * Nextcloud - Android Client
  *
+ * SPDX-FileCopyrightText: 2024 TSI-mc <surinder.kumar@t-systems.com>
  * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2018 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.trashbin
 
@@ -43,50 +44,56 @@ class TrashbinPresenter(
         }
     }
 
-    override fun loadFolder() {
+    override fun loadFolder(onCompleted: () -> Unit, onError: () -> Unit) {
         trashbinRepository.getFolder(
             currentPath,
             object : LoadFolderCallback {
                 override fun onSuccess(files: List<TrashbinFile?>?) {
                     trashbinView.showTrashbinFolder(files)
+                    onCompleted()
                 }
 
                 override fun onError(error: Int) {
                     trashbinView.showError(error)
+                    onError()
                 }
             }
         )
         trashbinView.atRoot(isRoot)
     }
 
-    override fun restoreTrashbinFile(file: TrashbinFile?) {
-        trashbinRepository.restoreFile(
-            file,
-            object : TrashbinRepository.OperationCallback {
-                override fun onResult(success: Boolean) {
-                    if (success) {
-                        trashbinView.removeFile(file)
-                    } else {
-                        trashbinView.showSnackbarError(R.string.trashbin_file_not_restored, file)
+    override fun restoreTrashbinFile(files: Collection<TrashbinFile?>) {
+        for (file in files) {
+            trashbinRepository.restoreFile(
+                file,
+                object : TrashbinRepository.OperationCallback {
+                    override fun onResult(success: Boolean) {
+                        if (success) {
+                            trashbinView.removeFile(file)
+                        } else {
+                            trashbinView.showSnackbarError(R.string.trashbin_file_not_restored, file)
+                        }
                     }
                 }
-            }
-        )
+            )
+        }
     }
 
-    override fun removeTrashbinFile(file: TrashbinFile?) {
-        trashbinRepository.removeTrashbinFile(
-            file,
-            object : TrashbinRepository.OperationCallback {
-                override fun onResult(success: Boolean) {
-                    if (success) {
-                        trashbinView.removeFile(file)
-                    } else {
-                        trashbinView.showSnackbarError(R.string.trashbin_file_not_deleted, file)
+    override fun removeTrashbinFile(files: Collection<TrashbinFile?>) {
+        for (file in files) {
+            trashbinRepository.removeTrashbinFile(
+                file,
+                object : TrashbinRepository.OperationCallback {
+                    override fun onResult(success: Boolean) {
+                        if (success) {
+                            trashbinView.removeFile(file)
+                        } else {
+                            trashbinView.showSnackbarError(R.string.trashbin_file_not_deleted, file)
+                        }
                     }
                 }
-            }
-        )
+            )
+        }
     }
 
     override fun emptyTrashbin() {

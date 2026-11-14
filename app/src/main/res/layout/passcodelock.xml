@@ -6,7 +6,7 @@
   ~ SPDX-FileCopyrightText: 2015 ownCloud Inc.
   ~ SPDX-FileCopyrightText: 2012-2015 David A. Velasco <dvelasco@solidgear.es>
   ~ SPDX-FileCopyrightText: 2012 Bartosz Przybylski <bart.p.pl@gmail.com>
-  ~ SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
 -->
 <ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -51,7 +51,7 @@
                     android:id="@+id/explanation"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/pass_code_configure_your_pass_code_explanation"
+                    android:text="@string/pass_code_explanation"
                     android:textAppearance="@android:style/TextAppearance.Small"
                     android:textSize="@dimen/two_line_secondary_text_size" />
 
@@ -63,8 +63,7 @@
                     <com.owncloud.android.ui.components.PassCodeEditText
                         android:id="@+id/txt0"
                         style="@style/PassCodeStyle"
-                        android:importantForAutofill="no"
-                        tools:text="123">
+                        android:importantForAutofill="no">
                     </com.owncloud.android.ui.components.PassCodeEditText>
 
                     <com.owncloud.android.ui.components.PassCodeEditText

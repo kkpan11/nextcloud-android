@@ -3,12 +3,14 @@
  *
  * SPDX-FileCopyrightText: 2023 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.database.migrations
 
+import androidx.room.DeleteColumn
 import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.nextcloud.client.database.migrations.model.SQLiteColumnType
 
 object DatabaseMigrationUtil {
 
@@ -16,6 +18,32 @@ object DatabaseMigrationUtil {
     const val TYPE_INTEGER = "INTEGER"
     const val TYPE_INTEGER_PRIMARY_KEY = "INTEGER PRIMARY KEY"
     const val KEYWORD_NOT_NULL = "NOT NULL"
+
+    fun addColumnIfNotExists(
+        db: SupportSQLiteDatabase,
+        tableName: String,
+        columnName: String,
+        columnType: SQLiteColumnType
+    ) {
+        val cursor = db.query("PRAGMA table_info($tableName)")
+        var columnExists = false
+
+        while (cursor.moveToNext()) {
+            val nameIndex = cursor.getColumnIndex("name")
+            if (nameIndex != -1) {
+                val existingColumnName = cursor.getString(nameIndex)
+                if (existingColumnName == columnName) {
+                    columnExists = true
+                    break
+                }
+            }
+        }
+        cursor.close()
+
+        if (!columnExists) {
+            db.execSQL("ALTER TABLE $tableName ADD COLUMN `$columnName` ${columnType.value}")
+        }
+    }
 
     /**
      * Utility method to add or remove columns from a table
@@ -46,11 +74,7 @@ object DatabaseMigrationUtil {
     /**
      * Utility method to create a new table with the given columns
      */
-    private fun createNewTable(
-        database: SupportSQLiteDatabase,
-        newTableName: String,
-        columns: Map<String, String>
-    ) {
+    private fun createNewTable(database: SupportSQLiteDatabase, newTableName: String, columns: Map<String, String>) {
         val columnsString = columns.entries.joinToString(",") { "${it.key} ${it.value}" }
         database.execSQL("CREATE TABLE $newTableName ($columnsString)")
     }
@@ -80,11 +104,7 @@ object DatabaseMigrationUtil {
     /**
      * Utility method to replace an old table with a new one, essentially deleting the old one and renaming the new one
      */
-    private fun replaceTable(
-        database: SupportSQLiteDatabase,
-        tableName: String,
-        newTableTempName: String
-    ) {
+    private fun replaceTable(database: SupportSQLiteDatabase, tableName: String, newTableTempName: String) {
         database.execSQL("DROP TABLE $tableName")
         database.execSQL("ALTER TABLE $newTableTempName RENAME TO $tableName")
     }
@@ -98,4 +118,12 @@ object DatabaseMigrationUtil {
             super.onPostMigrate(db)
         }
     }
+
+    @DeleteColumn.Entries(
+        DeleteColumn(
+            tableName = "offline_operations",
+            columnName = "offline_operations_parent_path"
+        )
+    )
+    class DeleteColumnSpec : AutoMigrationSpec
 }

@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Unpublished <unpublished@gmx.net>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.activity;
 
@@ -27,8 +27,8 @@ public class FileDisplayActivityTest extends AbstractIT {
             InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
                 Activity activity =
                     ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(RESUMED).iterator().next();
-                if (activity instanceof WhatsNewActivity) {
-                    activity.onBackPressed();
+                if (activity instanceof WhatsNewActivity whatsNewActivity) {
+                    whatsNewActivity.getOnBackPressedDispatcher().onBackPressed();
                 }
             });
             scenario.recreate();

@@ -3,10 +3,11 @@
  *
  * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2018 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.operations;
 
+import com.nextcloud.utils.AppConstants;
 import com.owncloud.android.lib.common.OwnCloudClient;
 import com.owncloud.android.lib.common.operations.RemoteOperation;
 import com.owncloud.android.lib.common.operations.RemoteOperationResult;
@@ -27,8 +28,6 @@ public class RichDocumentsUrlOperation extends RemoteOperation {
      */
 
     private static final String TAG = RichDocumentsUrlOperation.class.getSimpleName();
-    private static final int SYNC_READ_TIMEOUT = 40000;
-    private static final int SYNC_CONNECTION_TIMEOUT = 5000;
     private static final String DOCUMENT_URL = "/ocs/v2.php/apps/richdocuments/api/v1/document";
     private static final String FILE_ID = "fileId";
 
@@ -56,7 +55,9 @@ public class RichDocumentsUrlOperation extends RemoteOperation {
             // remote request
             postMethod.addRequestHeader(OCS_API_HEADER, OCS_API_HEADER_VALUE);
 
-            int status = client.executeMethod(postMethod, SYNC_READ_TIMEOUT, SYNC_CONNECTION_TIMEOUT);
+            int status = client.executeMethod(postMethod,
+                                              AppConstants.DEFAULT_READ_TIMEOUT_MS,
+                                              AppConstants.DEFAULT_CONNECTION_TIMEOUT_MS);
 
             if (status == HttpStatus.SC_OK) {
                 String response = postMethod.getResponseBodyAsString();

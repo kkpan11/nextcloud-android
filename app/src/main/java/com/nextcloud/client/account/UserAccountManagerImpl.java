@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 TSI-mc
+ * SPDX-FileCopyrightText: 2023-2024 TSI-mc <surinder.kumar@t-systems.com>
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account;
 
@@ -19,7 +19,10 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.text.TextUtils;
 
+import com.nextcloud.client.onboarding.FirstRunActivity;
 import com.nextcloud.common.NextcloudClient;
+import com.nextcloud.utils.extensions.AccountExtensionsKt;
+import com.nmc.android.ui.LauncherActivity;
 import com.owncloud.android.MainApp;
 import com.owncloud.android.R;
 import com.owncloud.android.authentication.AuthenticatorActivity;
@@ -38,6 +41,7 @@ import com.owncloud.android.lib.resources.users.GetUserInfoRemoteOperation;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,11 +55,11 @@ public class UserAccountManagerImpl implements UserAccountManager {
     private static final String TAG = UserAccountManagerImpl.class.getSimpleName();
     private static final String PREF_SELECT_OC_ACCOUNT = "select_oc_account";
 
-    private Context context;
-    private AccountManager accountManager;
+    private final Context context;
+    private final AccountManager accountManager;
 
     public static UserAccountManagerImpl fromContext(Context context) {
-        AccountManager am = (AccountManager)context.getSystemService(Context.ACCOUNT_SERVICE);
+        AccountManager am = (AccountManager) context.getSystemService(Context.ACCOUNT_SERVICE);
         return new UserAccountManagerImpl(context, am);
     }
 
@@ -109,62 +113,115 @@ public class UserAccountManagerImpl implements UserAccountManager {
 
     @Override
     public boolean exists(Account account) {
-        Account[] nextcloudAccounts = getAccounts();
+        try {
+            if (account == null) {
+                Log_OC.d(TAG, "account is null");
+                return false;
+            }
 
-        if (account != null && account.name != null) {
+            Account[] nextcloudAccounts = getAccounts();
+            if (nextcloudAccounts.length == 0) {
+                Log_OC.d(TAG, "nextcloudAccounts are empty");
+                return false;
+            }
+
+            if (account.name.isEmpty()) {
+                Log_OC.d(TAG, "account name is empty");
+                return false;
+            }
+
             int lastAtPos = account.name.lastIndexOf('@');
+            if (lastAtPos == -1) {
+                Log_OC.d(TAG, "lastAtPos cannot be found");
+                return false;
+            }
+
+            boolean isLastAtPosInBoundsForHostAndPort = lastAtPos + 1 < account.name.length();
+            if (!isLastAtPosInBoundsForHostAndPort) {
+                Log_OC.d(TAG, "lastAtPos not in bounds");
+                return false;
+            }
+
             String hostAndPort = account.name.substring(lastAtPos + 1);
+
             String username = account.name.substring(0, lastAtPos);
+            if (hostAndPort.isEmpty() || username.isEmpty()) {
+                Log_OC.d(TAG, "hostAndPort or username is empty");
+                return false;
+            }
+
             String otherHostAndPort;
             String otherUsername;
+
             for (Account otherAccount : nextcloudAccounts) {
+                // Skip null accounts or accounts with null names
+                if (otherAccount == null || otherAccount.name.isEmpty()) {
+                    continue;
+                }
+
                 lastAtPos = otherAccount.name.lastIndexOf('@');
+
+                // Skip invalid account names
+                if (lastAtPos == -1) {
+                    continue;
+                }
+
+                boolean isLastAtPosInBoundsForOtherHostAndPort = lastAtPos + 1 < otherAccount.name.length();
+                if (!isLastAtPosInBoundsForOtherHostAndPort) {
+                    continue;
+                }
                 otherHostAndPort = otherAccount.name.substring(lastAtPos + 1);
+
                 otherUsername = otherAccount.name.substring(0, lastAtPos);
+
                 if (otherHostAndPort.equals(hostAndPort) &&
                     otherUsername.equalsIgnoreCase(username)) {
                     return true;
                 }
             }
+
+            return false;
+        } catch (Exception e) {
+            Log_OC.d(TAG, "Exception caught at UserAccountManagerImpl.exists(): " + e);
+            return false;
         }
-        return false;
     }
 
     @Override
-    @Nullable
+    @NonNull
     public Account getCurrentAccount() {
         Account[] ocAccounts = getAccounts();
-        Account defaultAccount = null;
 
         ArbitraryDataProvider arbitraryDataProvider = new ArbitraryDataProviderImpl(context);
-
         SharedPreferences appPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         String accountName = appPreferences.getString(PREF_SELECT_OC_ACCOUNT, null);
 
-        // account validation: the saved account MUST be in the list of ownCloud Accounts known by the AccountManager
-        if (accountName != null) {
-            for (Account account : ocAccounts) {
-                if (account.name.equals(accountName)) {
-                    defaultAccount = account;
-                    break;
-                }
-            }
+        Account defaultAccount = Arrays.stream(ocAccounts)
+            .filter(account -> account.name.equals(accountName))
+            .findFirst()
+            .orElse(null);
+
+        // take first which is not pending for removal account as fallback
+        if (defaultAccount == null) {
+            defaultAccount = Arrays.stream(ocAccounts)
+                .filter(account -> !arbitraryDataProvider.getBooleanValue(account.name, PENDING_FOR_REMOVAL))
+                .findFirst()
+                .orElse(null);
         }
 
-        if (defaultAccount == null && ocAccounts.length > 0) {
-            // take first which is not pending for removal account as fallback
-            for (Account account: ocAccounts) {
-                boolean pendingForRemoval = arbitraryDataProvider.getBooleanValue(account.name,
-                                                                                  PENDING_FOR_REMOVAL);
-
-                if (!pendingForRemoval) {
-                    defaultAccount = account;
-                    break;
-                }
+        if (defaultAccount == null) {
+            if (ocAccounts.length > 0) {
+                defaultAccount = ocAccounts[0];
+            } else {
+                defaultAccount = getAnonymousAccount();
             }
         }
 
         return defaultAccount;
+    }
+
+    private Account getAnonymousAccount() {
+        return new Account("Anonymous", context.getString(R.string.anonymous_account_type));
     }
 
     /**
@@ -176,15 +233,21 @@ public class UserAccountManagerImpl implements UserAccountManager {
      * @return User instance or null, if conversion failed
      */
     @Nullable
-    private User createUserFromAccount(@Nullable Account account) {
-        if (account == null) {
+    private User createUserFromAccount(@NonNull Account account) {
+        Context safeContext = context != null ? context : MainApp.getAppContext();
+        if (safeContext == null) {
+            Log_OC.e(TAG, "Unable to obtain a valid context");
             return null;
         }
 
-        OwnCloudAccount ownCloudAccount = null;
+        if (AccountExtensionsKt.isAnonymous(account, safeContext)) {
+            return null;
+        }
+
+        OwnCloudAccount ownCloudAccount;
         try {
-            ownCloudAccount = new OwnCloudAccount(account, context);
-        } catch (AccountUtils.AccountNotFoundException ex) {
+            ownCloudAccount = new OwnCloudAccount(account, safeContext);
+        } catch (Exception ex) {
             return null;
         }
 
@@ -204,7 +267,7 @@ public class UserAccountManagerImpl implements UserAccountManager {
          */
         String serverAddressStr = accountManager.getUserData(account, AccountUtils.Constants.KEY_OC_BASE_URL);
         if (serverAddressStr == null || serverAddressStr.isEmpty()) {
-            return AnonymousUser.fromContext(context);
+            return AnonymousUser.fromContext(safeContext);
         }
         URI serverUri = URI.create(serverAddressStr); // TODO: validate
 
@@ -242,6 +305,12 @@ public class UserAccountManagerImpl implements UserAccountManager {
         return AnonymousUser.fromContext(context);
     }
 
+    @Nullable
+    @Override
+    public Context getContext() {
+        return context;
+    }
+
     @Override
     @Nullable
     public OwnCloudAccount getCurrentOwnCloudAccount() {
@@ -254,7 +323,7 @@ public class UserAccountManagerImpl implements UserAccountManager {
     }
 
     @Override
-    @Nullable
+    @NonNull
     public Account getAccountByName(String name) {
         for (Account account : getAccounts()) {
             if (account.name.equals(name)) {
@@ -262,7 +331,7 @@ public class UserAccountManagerImpl implements UserAccountManager {
             }
         }
 
-        return null;
+        return getAnonymousAccount();
     }
 
     @Override
@@ -283,11 +352,11 @@ public class UserAccountManagerImpl implements UserAccountManager {
     }
 
     @Override
-    public boolean setCurrentOwnCloudAccount(int hashCode) {
+    public boolean setCurrentOwnCloudAccount(User chosenUser) {
         boolean result = false;
-        if (hashCode != 0) {
+        if (chosenUser != null) {
             for (final User user : getAllUsers()) {
-                if (hashCode == user.hashCode()) {
+                if (chosenUser.nameEquals(user)) {
                     SharedPreferences.Editor appPrefs = PreferenceManager.getDefaultSharedPreferences(context).edit();
                     appPrefs.putString(PREF_SELECT_OC_ACCOUNT, user.getAccountName());
                     appPrefs.apply();
@@ -390,6 +459,10 @@ public class UserAccountManagerImpl implements UserAccountManager {
 
     @Override
     public void startAccountCreation(final Activity activity) {
+
+        // skipping AuthenticatorActivity redirection when user is on Launcher or FirstRun Activity
+        if (activity instanceof LauncherActivity || activity instanceof FirstRunActivity) return;
+
         Intent intent = new Intent(context, AuthenticatorActivity.class);
 
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

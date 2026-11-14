@@ -4,7 +4,7 @@
   ~
   ~ SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
   ~ SPDX-FileCopyrightText: 2022 Nextcloud GmbH
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -23,7 +23,7 @@
         android:layout_marginEnd="@dimen/standard_half_margin"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:textStyle="bold"
-        tools:text="July" />
+        tools:text="@string/placeholder_month" />
 
     <TextView
         android:id="@+id/year"
@@ -32,5 +32,5 @@
         android:layout_marginTop="@dimen/standard_margin"
         android:layout_marginBottom="@dimen/standard_margin"
         android:textAppearance="?android:attr/textAppearanceLarge"
-        tools:text="2016" />
+        tools:text="@string/placeholder_year" />
 </LinearLayout>

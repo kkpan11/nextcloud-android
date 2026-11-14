@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.database.migrations
 
@@ -26,9 +26,9 @@ class LegacyMigration(
     private val context: Context
 ) : Migration(from, to) {
 
-    override fun migrate(database: SupportSQLiteDatabase) {
+    override fun migrate(db: SupportSQLiteDatabase) {
         LegacyMigrationHelper(clock, context)
-            .tryUpgrade(database, from, to)
+            .tryUpgrade(db, from, to)
     }
 }
 

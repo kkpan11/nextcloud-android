@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils
 
@@ -33,11 +33,11 @@ private val nonAncestors: Array<Array<Any>> = arrayOf(
 /**
  * These should return `false` for [PathUtils.isDirectParent] but `true` for [PathUtils.isAncestor]
  */
-private val indirectAncestors: List<Pair<String, String>> = listOf(
-    Pair("/bar", "/bar/foo/baz.tgz"),
-    Pair("/bar/", "/bar/foo/baz.tgz"),
-    Pair("/bar/", "/bar/foo/baz/"),
-    Pair("/bar/", "/bar/foo/baz")
+private val indirectAncestors: Array<Array<Any>> = arrayOf(
+    arrayOf("/bar", "/bar/foo/baz.tgz", true),
+    arrayOf("/bar/", "/bar/foo/baz.tgz", true),
+    arrayOf("/bar/", "/bar/foo/baz/", true),
+    arrayOf("/bar/", "/bar/foo/baz", true)
 )
 
 @RunWith(Suite::class)
@@ -63,11 +63,10 @@ class PathUtilsTest {
             @Parameterized.Parameters(name = "{0}, {1} => {2}")
             @JvmStatic
             fun urls(): Array<Array<Any>> {
-                val otherAncestors: Array<Array<Any>> = indirectAncestors.map {
-                    @Suppress("UNCHECKED_CAST")
-                    arrayOf(it.first, it.second, false) as Array<Any>
-                }.toTypedArray()
-                return directParents + nonAncestors + otherAncestors
+                indirectAncestors.forEach {
+                    it[2] = false
+                }
+                return directParents + nonAncestors + indirectAncestors
             }
         }
     }
@@ -88,11 +87,10 @@ class PathUtilsTest {
             @Parameterized.Parameters(name = "{0}, {1} => {2}")
             @JvmStatic
             fun urls(): Array<Array<Any>> {
-                val otherAncestors: Array<Array<Any>> = indirectAncestors.map {
-                    @Suppress("UNCHECKED_CAST")
-                    arrayOf(it.first, it.second, true) as Array<Any>
-                }.toTypedArray()
-                return directParents + nonAncestors + otherAncestors
+                indirectAncestors.forEach {
+                    it[2] = true // setting explicitly again to true for better readability
+                }
+                return directParents + nonAncestors + indirectAncestors
             }
         }
     }

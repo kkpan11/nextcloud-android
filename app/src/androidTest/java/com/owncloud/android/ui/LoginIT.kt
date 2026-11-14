@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui
 
@@ -20,6 +20,7 @@ import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.account.UserAccountManagerImpl
+import com.nextcloud.test.Flaky
 import com.nextcloud.test.GrantStoragePermissionRule
 import com.nextcloud.test.RetryTestRule
 import com.owncloud.android.AbstractIT
@@ -45,15 +46,15 @@ class LoginIT : AbstractIT() {
         ActivityScenario.launch(AuthenticatorActivity::class.java)
     }
 
-    @Test
-    @Throws(InterruptedException::class)
-    @Suppress("MagicNumber", "SwallowedException")
-
     /**
      * The CI/CD pipeline is encountering issues related to the Android version for this functionality.
      * Therefore the test will only be executed on Android versions 10 and above.
      */
+    @Test
+    @Throws(InterruptedException::class)
+    @Suppress("MagicNumber")
     @SdkSuppress(minSdkVersion = Build.VERSION_CODES.Q)
+    @Flaky("Login no longer uses an in-app WebView, so espresso-web (Espresso.onWebView) cannot drive it. ")
     fun login() {
         val arguments = InstrumentationRegistry.getArguments()
         val baseUrl = arguments.getString("TEST_SERVER_URL")!!
@@ -71,7 +72,7 @@ class LoginIT : AbstractIT() {
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//form[@id='login-form']/input[@type='submit']"))
                 .perform(DriverAtoms.webClick())
-        } catch (e: RuntimeException) {
+        } catch (_: RuntimeException) {
             // NC < 25
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//p[@id='redirect-link']/a"))
@@ -94,7 +95,7 @@ class LoginIT : AbstractIT() {
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//button[@type='submit']"))
                 .perform(DriverAtoms.webClick())
-        } catch (e: RuntimeException) {
+        } catch (_: RuntimeException) {
             // NC < 25
             Web.onWebView()
                 .withElement(DriverAtoms.findElement(Locator.XPATH, "//input[@type='submit']"))

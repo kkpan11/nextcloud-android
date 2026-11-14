@@ -5,7 +5,7 @@
  * Copyright (C) 2021 TSI-mc
  * Copyright (C) 2021 Nextcloud GmbH
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 
 package com.owncloud.android.ui.fragment;
@@ -13,14 +13,18 @@ package com.owncloud.android.ui.fragment;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
+import androidx.core.content.ContextCompat;
+import com.owncloud.android.R;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.nextcloud.android.common.ui.theme.utils.ColorRole;
+import com.nextcloud.utils.mdm.MDMConfig;
 import com.owncloud.android.databinding.FileDetailsSharingMenuBottomSheetFragmentBinding;
 import com.owncloud.android.lib.resources.shares.OCShare;
 import com.owncloud.android.lib.resources.shares.ShareType;
 import com.owncloud.android.ui.activity.FileActivity;
-import com.owncloud.android.ui.fragment.util.SharingMenuHelper;
+import com.owncloud.android.ui.fragment.util.SharePermissionManager;
 import com.owncloud.android.utils.theme.ViewThemeUtils;
 
 /**
@@ -31,14 +35,18 @@ public class FileDetailSharingMenuBottomSheetDialog extends BottomSheetDialog {
     private final FileDetailsSharingMenuBottomSheetActions actions;
     private final OCShare ocShare;
     private final ViewThemeUtils viewThemeUtils;
+    private final boolean encrypted;
+
     public FileDetailSharingMenuBottomSheetDialog(FileActivity fileActivity,
                                                   FileDetailsSharingMenuBottomSheetActions actions,
                                                   OCShare ocShare,
-                                                  ViewThemeUtils viewThemeUtils) {
+                                                  ViewThemeUtils viewThemeUtils,
+                                                  boolean encrypted) {
         super(fileActivity);
         this.actions = actions;
         this.ocShare = ocShare;
         this.viewThemeUtils = viewThemeUtils;
+        this.encrypted = encrypted;
     }
 
     @Override
@@ -53,11 +61,15 @@ public class FileDetailSharingMenuBottomSheetDialog extends BottomSheetDialog {
 
         viewThemeUtils.platform.themeDialog(binding.getRoot());
 
-        viewThemeUtils.platform.colorImageView(binding.menuIconAddAnotherLink);
-        viewThemeUtils.platform.colorImageView(binding.menuIconAdvancedPermissions);
-        viewThemeUtils.platform.colorImageView(binding.menuIconSendLink);
-        viewThemeUtils.platform.colorImageView(binding.menuIconUnshare);
-        viewThemeUtils.platform.colorImageView(binding.menuIconSendNewEmail);
+        int textColor = ContextCompat.getColor(getContext(), R.color.text_color);
+        viewThemeUtils.material.colorMaterialButtonContent(binding.menuShareAdvancedPermissions, ColorRole.PRIMARY);
+        viewThemeUtils.material.colorMaterialButtonContent(binding.menuShareSendNewEmail, ColorRole.PRIMARY);
+        viewThemeUtils.material.colorMaterialButtonContent(binding.menuShareSendLink, ColorRole.PRIMARY);
+        viewThemeUtils.material.colorMaterialButtonContent(binding.menuShareUnshare, ColorRole.PRIMARY);
+        binding.menuShareAdvancedPermissions.setTextColor(textColor);
+        binding.menuShareSendNewEmail.setTextColor(textColor);
+        binding.menuShareSendLink.setTextColor(textColor);
+        binding.menuShareUnshare.setTextColor(textColor);
 
         updateUI();
 
@@ -71,16 +83,15 @@ public class FileDetailSharingMenuBottomSheetDialog extends BottomSheetDialog {
 
     private void updateUI() {
         if (ocShare.getShareType() == ShareType.PUBLIC_LINK) {
-            binding.menuShareAddAnotherLink.setVisibility(View.VISIBLE);
-            binding.menuShareSendLink.setVisibility(View.VISIBLE);
+            if (MDMConfig.INSTANCE.sendFilesSupport(getContext())) {
+                binding.menuShareSendLink.setVisibility(View.VISIBLE);
+            }
         } else {
-            binding.menuShareAddAnotherLink.setVisibility(View.GONE);
             binding.menuShareSendLink.setVisibility(View.GONE);
         }
 
-        if (SharingMenuHelper.isSecureFileDrop(ocShare)) {
+        if (SharePermissionManager.INSTANCE.isSecureFileDrop(ocShare) && encrypted) {
             binding.menuShareAdvancedPermissions.setVisibility(View.GONE);
-            binding.menuShareAddAnotherLink.setVisibility(View.GONE);
         }
     }
 
@@ -102,11 +113,6 @@ public class FileDetailSharingMenuBottomSheetDialog extends BottomSheetDialog {
 
         binding.menuShareSendLink.setOnClickListener(v -> {
             actions.sendLink(ocShare);
-            dismiss();
-        });
-
-        binding.menuShareAddAnotherLink.setOnClickListener(v -> {
-            actions.addAnotherLink(ocShare);
             dismiss();
         });
     }

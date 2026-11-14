@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.migrations
 
@@ -30,7 +30,6 @@ internal class MigrationsManagerImpl(
     }
 
     @Throws(MigrationError::class)
-    @Suppress("ReturnCount")
     override fun startMigration(): Int {
         if (migrationsDb.isFailed) {
             (status as MutableLiveData<Status>).value = Status.FAILED
@@ -61,7 +60,6 @@ internal class MigrationsManagerImpl(
      */
     private fun asyncApplyMigrations(migrations: Collection<Migrations.Step>) {
         migrations.forEach {
-            @Suppress("TooGenericExceptionCaught") // migration code is free to throw anything
             try {
                 it.run.invoke(it)
                 migrationsDb.addAppliedMigration(it.id)

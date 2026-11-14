@@ -6,7 +6,7 @@
  * Copyright (C) 2018 Mario Danic
  * Copyright (C) 2020 Chris Narkiewicz <hello@ezaquarii.com>
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
@@ -27,8 +27,7 @@ import com.owncloud.android.operations.SynchronizeFileOperation
 import com.owncloud.android.utils.FileStorageUtils
 import java.io.File
 
-@Suppress("LongParameterList") // Legacy code
-class OfflineSyncWork constructor(
+class OfflineSyncWork(
     private val context: Context,
     params: WorkerParameters,
     private val contentResolver: ContentResolver,
@@ -65,19 +64,27 @@ class OfflineSyncWork constructor(
             return
         }
 
-        val updatedEtag = checkEtagChanged(folderName, storageManager, user) ?: return
+        val updatedEtag = checkETagChanged(folderName, storageManager, user) ?: return
 
         // iterate over downloaded files
         val files = folder.listFiles { obj: File -> obj.isFile }
         if (files != null) {
             for (file in files) {
                 val ocFile = storageManager.getFileByLocalPath(file.path)
+                val remotePath = ocFile?.remotePath
+                if (remotePath == null) {
+                    Log_OC.w(TAG, "remote path is null can't sync")
+                    continue
+                }
+
                 val synchronizeFileOperation = SynchronizeFileOperation(
-                    ocFile?.remotePath,
+                    remotePath,
                     user,
                     true,
                     context,
-                    storageManager
+                    storageManager,
+                    false,
+                    false
                 )
                 synchronizeFileOperation.execute(context)
             }
@@ -90,7 +97,6 @@ class OfflineSyncWork constructor(
             }
         }
         // update eTag
-        @Suppress("TooGenericExceptionCaught") // legacy code
         try {
             val ocFolder = storageManager.getFileByPath(folderName)
             ocFolder.etagOnServer = updatedEtag
@@ -101,41 +107,42 @@ class OfflineSyncWork constructor(
     }
 
     /**
-     * @return new etag if changed, `null` otherwise
+     * @return new eTag if changed, `null` otherwise
      */
-    private fun checkEtagChanged(folderName: String, storageManager: FileDataStorageManager, user: User): String? {
-        val ocFolder = storageManager.getFileByPath(folderName) ?: return null
+    private fun checkETagChanged(folderName: String, storageManager: FileDataStorageManager, user: User): String? {
+        val folder = storageManager.getFileByEncryptedRemotePath(folderName) ?: return null
 
-        Log_OC.d(TAG, "$folderName: currentEtag: ${ocFolder.etag}")
+        Log_OC.d(TAG, "$folderName: current eTag: ${folder.etag}")
 
         // check for etag change, if false, skip
-        val checkEtagOperation = CheckEtagRemoteOperation(
-            ocFolder.remotePath,
-            ocFolder.etagOnServer
-        )
-        val result = checkEtagOperation.execute(user, context)
+        val operation = CheckEtagRemoteOperation(folder.remotePath, folder.etagOnServer)
+        val result = operation.execute(user, context)
+
         return when (result.code) {
             ResultCode.ETAG_UNCHANGED -> {
                 Log_OC.d(TAG, "$folderName: eTag unchanged")
                 null
             }
+
             ResultCode.FILE_NOT_FOUND -> {
-                val removalResult = storageManager.removeFolder(ocFolder, true, true)
+                val removalResult = storageManager.removeFolder(folder, true, true)
                 if (!removalResult) {
-                    Log_OC.e(TAG, "removal of " + ocFolder.storagePath + " failed: file not found")
+                    Log_OC.e(TAG, "removal of " + folder.storagePath + " failed: file not found")
                 }
                 null
             }
+
             ResultCode.ETAG_CHANGED -> {
                 Log_OC.d(TAG, "$folderName: eTag changed")
-                result.data[0] as String
+                result?.data?.get(0) as? String
             }
-            else -> if (connectivityService.isInternetWalled) {
+
+            else -> if (connectivityService.isInternetWalled()) {
                 Log_OC.d(TAG, "No connectivity, skipping sync")
                 null
             } else {
                 Log_OC.d(TAG, "$folderName: eTag changed")
-                result.data[0] as String
+                result?.data?.get(0) as? String
             }
         }
     }

@@ -3,14 +3,13 @@
  *
  * SPDX-FileCopyrightText: 2016 Andy Scherzinger
  * SPDX-FileCopyrightText: 2016 Nextcloud
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.dialog
 
-import android.app.Activity
 import android.app.Dialog
+import android.content.Context
 import android.content.DialogInterface
-import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.TextUtils
@@ -19,10 +18,12 @@ import android.view.View
 import android.widget.AdapterView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.preferences.SubFolderRule
 import com.nextcloud.utils.extensions.getParcelableArgument
+import com.nextcloud.utils.text.SpanFormatter
 import com.owncloud.android.R
 import com.owncloud.android.databinding.SyncedFoldersSettingsLayoutBinding
 import com.owncloud.android.datamodel.MediaFolderType
@@ -30,12 +31,13 @@ import com.owncloud.android.datamodel.SyncedFolder
 import com.owncloud.android.datamodel.SyncedFolderDisplayItem
 import com.owncloud.android.files.services.NameCollisionPolicy
 import com.owncloud.android.lib.common.utils.Log_OC
-import com.owncloud.android.ui.activity.FolderPickerActivity
-import com.owncloud.android.ui.activity.UploadFilesActivity
 import com.owncloud.android.ui.dialog.parcel.SyncedFolderParcelable
-import com.owncloud.android.utils.DisplayUtils
 import com.owncloud.android.utils.FileStorageUtils
+import com.owncloud.android.utils.FileUtil
 import com.owncloud.android.utils.theme.ViewThemeUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -43,7 +45,9 @@ import javax.inject.Inject
  * Dialog to show the preferences/configuration of a synced folder allowing the user to change the different
  * parameters.
  */
-class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
+class SyncedFolderPreferencesDialogFragment :
+    DialogFragment(),
+    Injectable {
 
     @JvmField
     @Inject
@@ -59,14 +63,15 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
     private var binding: SyncedFoldersSettingsLayoutBinding? = null
     private var isNeutralButtonActive = true
 
-    @Deprecated("Deprecated in Java")
-    override fun onAttach(activity: Activity) {
-        super.onAttach(activity)
-        require(activity is OnSyncedFolderPreferenceListener) {
-            (
-                "The host activity must implement " +
-                    OnSyncedFolderPreferenceListener::class.java.canonicalName
-                )
+    private val listener: OnSyncedFolderPreferenceListener?
+        get() = parentFragment as? OnSyncedFolderPreferenceListener
+            ?: activity as? OnSyncedFolderPreferenceListener
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        requireNotNull(listener) {
+            "The parent fragment or host activity must implement " +
+                OnSyncedFolderPreferenceListener::class.java.canonicalName
         }
     }
 
@@ -178,7 +183,7 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
             setEnabled(it.isEnabled)
 
             if (!TextUtils.isEmpty(it.localPath)) {
-                binding.syncedFoldersSettingsLocalFolderPath.text = DisplayUtils.createTextWithSpan(
+                binding.syncedFoldersSettingsLocalFolderPath.text = SpanFormatter.styleLast(
                     String.format(
                         getString(R.string.synced_folders_preferences_folder_path),
                         it.localPath
@@ -232,30 +237,16 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
         setupViews(binding, enabled)
     }
 
-    /**
-     * set (new) remote path on activity result of the folder picker activity. The result gets originally propagated to
-     * the underlying activity since the picker is an activity and the result can't get passed to the dialog fragment
-     * directly.
-     *
-     * @param path the remote path to be set
-     */
     fun setRemoteFolderSummary(path: String?) {
         syncedFolder?.remotePath = path
         binding?.remoteFolderSummary?.text = path
         checkAndUpdateSaveButtonState()
     }
 
-    /**
-     * set (new) local path on activity result of the folder picker activity. The result gets originally propagated to
-     * the underlying activity since the picker is an activity and the result can't get passed to the dialog fragment
-     * directly.
-     *
-     * @param path the local path to be set
-     */
     fun setLocalFolderSummary(path: String?) {
         syncedFolder?.localPath = path
         binding?.localFolderSummary?.text = FileStorageUtils.pathToUserFriendlyDisplay(path, activity, resources)
-        binding?.syncedFoldersSettingsLocalFolderPath?.text = DisplayUtils.createTextWithSpan(
+        binding?.syncedFoldersSettingsLocalFolderPath?.text = SpanFormatter.styleLast(
             String.format(
                 getString(R.string.synced_folders_preferences_folder_path),
                 syncedFolder!!.localPath
@@ -274,29 +265,40 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
     private fun checkWritableFolder() {
         if (!syncedFolder!!.isEnabled) {
             binding?.settingInstantBehaviourContainer?.isEnabled = false
-            binding?.settingInstantBehaviourContainer?.alpha = alphaDisabled
+            binding?.settingInstantBehaviourContainer?.alpha = ALPHA_DISABLED
             return
         }
-        if (syncedFolder!!.localPath != null && File(syncedFolder!!.localPath).canWrite()) {
-            binding?.settingInstantBehaviourContainer?.isEnabled = true
-            binding?.settingInstantBehaviourContainer?.alpha = alphaEnabled
-            binding?.settingInstantBehaviourSummary?.text =
-                uploadBehaviorItemStrings[syncedFolder!!.uploadActionInteger]
-        } else {
-            binding?.settingInstantBehaviourContainer?.isEnabled = false
-            binding?.settingInstantBehaviourContainer?.alpha = alphaDisabled
-            syncedFolder?.setUploadAction(
-                resources.getTextArray(R.array.pref_behaviour_entryValues)[0].toString()
-            )
-            binding?.settingInstantBehaviourSummary?.setText(R.string.auto_upload_file_behaviour_kept_in_folder)
+
+        val folderFile = syncedFolder?.localPath?.let { File(it) }
+        lifecycleScope.launch {
+            val writable = FileUtil.isFolderWritable(folderFile)
+            withContext(Dispatchers.Main) {
+                binding?.settingInstantBehaviourContainer?.run {
+                    if (writable) {
+                        isEnabled = true
+                        alpha = ALPHA_ENABLED
+                        binding?.settingInstantBehaviourSummary?.text =
+                            uploadBehaviorItemStrings[syncedFolder!!.uploadActionInteger]
+                    } else {
+                        isEnabled = false
+                        alpha = ALPHA_DISABLED
+                        syncedFolder?.setUploadAction(
+                            resources.getTextArray(R.array.pref_behaviour_entryValues)[0].toString()
+                        )
+                        binding?.settingInstantBehaviourSummary?.setText(
+                            R.string.auto_upload_file_behaviour_kept_in_folder
+                        )
+                    }
+                }
+            }
         }
     }
 
     private fun setupViews(optionalBinding: SyncedFoldersSettingsLayoutBinding?, enable: Boolean) {
         val alpha: Float = if (enable) {
-            alphaEnabled
+            ALPHA_ENABLED
         } else {
-            alphaDisabled
+            ALPHA_DISABLED
         }
 
         optionalBinding?.let { binding ->
@@ -382,18 +384,8 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
             binding.syncEnabled.setOnClickListener { setEnabled(!syncedFolder.isEnabled) }
         }
 
-        binding.remoteFolderContainer.setOnClickListener {
-            val action = Intent(activity, FolderPickerActivity::class.java).apply {
-                putExtra(FolderPickerActivity.EXTRA_ACTION, FolderPickerActivity.CHOOSE_LOCATION)
-            }
-            requireActivity().startActivityForResult(action, REQUEST_CODE__SELECT_REMOTE_FOLDER)
-        }
-        binding.localFolderContainer.setOnClickListener {
-            val action = Intent(activity, UploadFilesActivity::class.java)
-            action.putExtra(UploadFilesActivity.KEY_LOCAL_FOLDER_PICKER_MODE, true)
-            action.putExtra(UploadFilesActivity.REQUEST_CODE_KEY, REQUEST_CODE__SELECT_LOCAL_FOLDER)
-            requireActivity().startActivityForResult(action, REQUEST_CODE__SELECT_LOCAL_FOLDER)
-        }
+        binding.remoteFolderContainer.setOnClickListener { listener?.onRemoteFolderPickerRequested() }
+        binding.localFolderContainer.setOnClickListener { listener?.onLocalFolderPickerRequested() }
 
         binding.settingInstantBehaviourContainer.setOnClickListener { showBehaviourDialog() }
         binding.settingInstantNameCollisionPolicyContainer.setOnClickListener { showNameCollisionPolicyDialog() }
@@ -456,7 +448,6 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean(BEHAVIOUR_DIALOG_STATE, behaviourDialogShown)
         outState.putBoolean(NAME_COLLISION_POLICY_DIALOG_STATE, nameCollisionPolicyDialogShown)
-        super.onSaveInstanceState(outState)
     }
 
     override fun onViewStateRestored(savedInstanceState: Bundle?) {
@@ -478,26 +469,28 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
         fun onSaveSyncedFolderPreference(syncedFolder: SyncedFolderParcelable?)
         fun onCancelSyncedFolderPreference()
         fun onDeleteSyncedFolderPreference(syncedFolder: SyncedFolderParcelable?)
+        fun onRemoteFolderPickerRequested()
+        fun onLocalFolderPickerRequested()
     }
 
     private inner class OnSyncedFolderSaveClickListener : View.OnClickListener {
         override fun onClick(v: View) {
             dismiss()
-            (activity as OnSyncedFolderPreferenceListener?)?.onSaveSyncedFolderPreference(syncedFolder)
+            listener?.onSaveSyncedFolderPreference(syncedFolder)
         }
     }
 
     private inner class OnSyncedFolderCancelClickListener : View.OnClickListener {
         override fun onClick(v: View) {
             dismiss()
-            (activity as OnSyncedFolderPreferenceListener?)?.onCancelSyncedFolderPreference()
+            listener?.onCancelSyncedFolderPreference()
         }
     }
 
     private inner class OnSyncedFolderDeleteClickListener : View.OnClickListener {
         override fun onClick(v: View) {
             dismiss()
-            (activity as OnSyncedFolderPreferenceListener?)?.onDeleteSyncedFolderPreference(syncedFolder)
+            listener?.onDeleteSyncedFolderPreference(syncedFolder)
         }
     }
 
@@ -514,54 +507,85 @@ class SyncedFolderPreferencesDialogFragment : DialogFragment(), Injectable {
 
     companion object {
         const val SYNCED_FOLDER_PARCELABLE = "SyncedFolderParcelable"
-        const val REQUEST_CODE__SELECT_REMOTE_FOLDER = 0
         const val REQUEST_CODE__SELECT_LOCAL_FOLDER = 1
         private val TAG = SyncedFolderPreferencesDialogFragment::class.java.simpleName
         private const val BEHAVIOUR_DIALOG_STATE = "BEHAVIOUR_DIALOG_STATE"
         private const val NAME_COLLISION_POLICY_DIALOG_STATE = "NAME_COLLISION_POLICY_DIALOG_STATE"
-        private const val alphaEnabled = 1.0f
-        private const val alphaDisabled = 0.7f
+        private const val ALPHA_ENABLED = 1.0f
+        private const val ALPHA_DISABLED = 0.7f
 
         @JvmStatic
-        fun newInstance(syncedFolder: SyncedFolderDisplayItem?, section: Int): SyncedFolderPreferencesDialogFragment {
-            requireNotNull(syncedFolder) { "SyncedFolder is mandatory but NULL!" }
-            val args = Bundle()
-            args.putParcelable(SYNCED_FOLDER_PARCELABLE, SyncedFolderParcelable(syncedFolder, section))
-            val dialogFragment = SyncedFolderPreferencesDialogFragment()
-            dialogFragment.arguments = args
-            dialogFragment.setStyle(STYLE_NORMAL, R.style.Theme_ownCloud_Dialog)
-            return dialogFragment
+        fun newInstance(syncedFolder: SyncedFolderDisplayItem?, section: Int): SyncedFolderPreferencesDialogFragment? {
+            if (syncedFolder == null) {
+                return null
+            }
+
+            val args = Bundle().apply {
+                putParcelable(SYNCED_FOLDER_PARCELABLE, SyncedFolderParcelable(syncedFolder, section))
+            }
+
+            return SyncedFolderPreferencesDialogFragment().apply {
+                arguments = args
+                setStyle(STYLE_NORMAL, R.style.Theme_ownCloud_Dialog)
+            }
         }
 
         /**
-         * Get index for name collision selection dialog.
+         * Converts a [NameCollisionPolicy] enum value into the corresponding
+         * **UI dialog selection index** used in the dialog.
          *
-         * @return 0 if ASK_USER, 1 if OVERWRITE, 2 if RENAME, 3 if SKIP, Otherwise: 0
+         * ⚠️ **Important:**
+         * These dialog indices are **not** the same as the integer values stored
+         * in the database or defined in [NameCollisionPolicy].
+         * This mapping is purely for UI selection purposes.
+         *
+         * | Policy              | Dialog Index |
+         * |---------------------|--------------|
+         * | ASK_USER (default)  | 0            |
+         * | OVERWRITE           | 1            |
+         * | RENAME              | 2            |
+         * | SKIP                | 3            |
+         *
+         * @param nameCollisionPolicy The collision handling policy.
+         * @return The index to preselect in the UI dialog for the given policy.
          */
         @Suppress("MagicNumber")
-        private fun getSelectionIndexForNameCollisionPolicy(nameCollisionPolicy: NameCollisionPolicy): Int {
-            return when (nameCollisionPolicy) {
+        private fun getSelectionIndexForNameCollisionPolicy(nameCollisionPolicy: NameCollisionPolicy): Int =
+            when (nameCollisionPolicy) {
                 NameCollisionPolicy.OVERWRITE -> 1
                 NameCollisionPolicy.RENAME -> 2
-                NameCollisionPolicy.CANCEL -> 3
+                NameCollisionPolicy.SKIP -> 3
                 NameCollisionPolicy.ASK_USER -> 0
             }
-        }
 
         /**
-         * Get index for name collision selection dialog. Inverse of getSelectionIndexForNameCollisionPolicy.
+         * Converts a **UI dialog selection index** from the dialog
+         * back into a [NameCollisionPolicy] enum value.
          *
-         * @return ASK_USER if 0, OVERWRITE if 1, RENAME if 2, SKIP if 3. Otherwise: ASK_USER
+         * ⚠️ **Important:**
+         * These indices are defined only for the dialog and are **not** the same as
+         * the values used in the database or internal enum ordinals.
+         * Always use this function to translate the dialog result safely.
+         *
+         * | Dialog Index | Policy              |
+         * |---------------|--------------------|
+         * | 0             | ASK_USER (default) |
+         * | 1             | OVERWRITE          |
+         * | 2             | RENAME             |
+         * | 3             | SKIP               |
+         *
+         * Any unexpected index value will default to [NameCollisionPolicy.ASK_USER].
+         *
+         * @param index The selected index from the dialog.
+         * @return The corresponding [NameCollisionPolicy] value.
          */
         @Suppress("MagicNumber")
-        private fun getNameCollisionPolicyForSelectionIndex(index: Int): NameCollisionPolicy {
-            return when (index) {
-                1 -> NameCollisionPolicy.OVERWRITE
-                2 -> NameCollisionPolicy.RENAME
-                3 -> NameCollisionPolicy.CANCEL
-                0 -> NameCollisionPolicy.ASK_USER
-                else -> NameCollisionPolicy.ASK_USER
-            }
+        private fun getNameCollisionPolicyForSelectionIndex(index: Int): NameCollisionPolicy = when (index) {
+            1 -> NameCollisionPolicy.OVERWRITE
+            2 -> NameCollisionPolicy.RENAME
+            3 -> NameCollisionPolicy.SKIP
+            0 -> NameCollisionPolicy.ASK_USER
+            else -> NameCollisionPolicy.ASK_USER
         }
     }
 }

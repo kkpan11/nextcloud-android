@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account
 
@@ -20,7 +20,9 @@ import java.net.URI
  * This is a mock user object suitable for integration tests. Mocks obtained from code generators
  * such as Mockito or MockK cannot be transported in Intent extras.
  */
-data class MockUser(override val accountName: String, val accountType: String) : User, Parcelable {
+data class MockUser(override val accountName: String, val accountType: String) :
+    User,
+    Parcelable {
 
     constructor() : this(DEFAULT_MOCK_ACCOUNT_NAME, DEFAULT_MOCK_ACCOUNT_TYPE)
 
@@ -42,21 +44,22 @@ data class MockUser(override val accountName: String, val accountType: String) :
     override val server = Server(URI.create(""), MainApp.MINIMUM_SUPPORTED_SERVER_VERSION)
     override val isAnonymous = false
 
-    override fun toPlatformAccount(): Account {
-        return Account(accountName, accountType)
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy Android Account access. Refactor code to use User object " +
+            "directly instead of platform Account."
+    )
+    override fun toPlatformAccount(): Account = Account(accountName, accountType)
 
-    override fun toOwnCloudAccount(): OwnCloudAccount {
-        return OwnCloudAccount(Uri.EMPTY, OwnCloudBasicCredentials("", ""))
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy OwnCloudAccount access. Refactor code to use User object " +
+            "directly instead of OwnCloudAccount."
+    )
+    override fun toOwnCloudAccount(): OwnCloudAccount = OwnCloudAccount(Uri.EMPTY, OwnCloudBasicCredentials("", ""))
 
-    override fun nameEquals(user: User?): Boolean {
-        return user?.accountName.equals(accountName, true)
-    }
+    override fun nameEquals(user: User?): Boolean = user?.accountName.equals(accountName, true)
 
-    override fun nameEquals(accountName: CharSequence?): Boolean {
-        return accountName?.toString().equals(this.accountType, true)
-    }
+    override fun nameEquals(accountName: CharSequence?): Boolean =
+        accountName?.toString().equals(this.accountType, true)
 
     override fun describeContents() = 0
 

@@ -4,7 +4,7 @@
   ~
   ~ SPDX-FileCopyrightText: 2016-2024 Nextcloud GmbH and Nextcloud contributors
   ~ SPDX-FileCopyrightText: 2017 Mario Danic <mario@lovelyhq.com>
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
@@ -12,6 +12,14 @@
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:node="remove"/>
+
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+    <!-- Used for document scanning, but lib declares it as required, which it's not -->
+    <uses-feature
+        android:name="android.hardware.camera2"
+        android:required="false"
+        tools:node="replace" />
 
     <application
         android:name=".MainApp"

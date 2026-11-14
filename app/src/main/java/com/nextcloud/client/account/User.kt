@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account
 
@@ -11,7 +11,9 @@ import android.accounts.Account
 import android.os.Parcelable
 import com.owncloud.android.lib.common.OwnCloudAccount
 
-interface User : Parcelable, com.nextcloud.common.User {
+interface User :
+    Parcelable,
+    com.nextcloud.common.User {
     override val accountName: String
     val server: Server
     val isAnonymous: Boolean
@@ -25,7 +27,10 @@ interface User : Parcelable, com.nextcloud.common.User {
      *
      * @return Account instance that is associated with this User object.
      */
-    @Deprecated("Temporary workaround")
+    @Deprecated(
+        "Temporary workaround: Legacy Android Account access. Refactor code to use User object " +
+            "directly instead of platform Account."
+    )
     override fun toPlatformAccount(): Account
 
     /**
@@ -37,7 +42,10 @@ interface User : Parcelable, com.nextcloud.common.User {
      *
      * @return OwnCloudAccount instance that is associated with this User object.
      */
-    @Deprecated("Temporary workaround")
+    @Deprecated(
+        "Temporary workaround: Legacy OwnCloudAccount access. Refactor code to use User object " +
+            "directly instead of OwnCloudAccount."
+    )
     fun toOwnCloudAccount(): OwnCloudAccount
 
     /**

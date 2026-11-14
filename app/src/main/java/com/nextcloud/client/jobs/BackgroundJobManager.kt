@@ -2,7 +2,8 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-FileCopyrightText: 2026 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs
 
@@ -10,13 +11,13 @@ import androidx.lifecycle.LiveData
 import androidx.work.ListenableWorker
 import com.nextcloud.client.account.User
 import com.owncloud.android.datamodel.OCFile
+import com.owncloud.android.datamodel.SyncedFolder
 import com.owncloud.android.operations.DownloadType
 
 /**
  * This interface allows to control, schedule and monitor all application
  * long-running background tasks, such as periodic checks or synchronization.
  */
-@Suppress("TooManyFunctions") // we expect this implementation to have rich API
 interface BackgroundJobManager {
 
     /**
@@ -95,7 +96,7 @@ interface BackgroundJobManager {
      * @param contactsAccountName Target contacts account name; null for local contacts
      * @param contactsAccountType Target contacts account type; null for local contacts
      * @param vCardFilePath Path to file containing all contact entries
-     * @param selectedContacts List of contact indices to import from [vCardFilePath] file
+     * @param selectedContactsFilePath File path of list of contact indices to import from [vCardFilePath] file
      *
      * @return Job info with current status; status is null if job does not exist
      */
@@ -103,7 +104,7 @@ interface BackgroundJobManager {
         contactsAccountName: String?,
         contactsAccountType: String?,
         vCardFilePath: String,
-        selectedContacts: IntArray
+        selectedContactsFilePath: String
     ): LiveData<JobInfo?>
 
     /**
@@ -119,12 +120,13 @@ interface BackgroundJobManager {
 
     fun startImmediateFilesExportJob(files: Collection<OCFile>): LiveData<JobInfo?>
 
-    fun schedulePeriodicFilesSyncJob()
+    /**
+     * @param overridePowerSaving uploads even while the device is in power saving mode. Such a run replaces an
+     * already scheduled run of the same folder, because that one would otherwise stop on the power saving check.
+     */
+    fun startAutoUpload(syncedFolder: SyncedFolder, overridePowerSaving: Boolean = false)
 
-    fun startImmediateFilesSyncJob(
-        overridePowerSaving: Boolean = false,
-        changedFiles: Array<String> = arrayOf<String>()
-    )
+    fun cancelTwoWaySyncJob()
 
     fun scheduleOfflineSync()
 
@@ -133,16 +135,22 @@ interface BackgroundJobManager {
 
     fun startNotificationJob(subject: String, signature: String)
     fun startAccountRemovalJob(accountName: String, remoteWipe: Boolean)
-    fun startFilesUploadJob(user: User)
+    fun startFilesUploadJob(
+        user: User,
+        uploadIds: LongArray,
+        showSameFileAlreadyExistsNotification: Boolean,
+        skipAutoUploadCheck: Boolean = false
+    )
+    fun startAlbumFilesUploadJob(user: User, uploadIds: LongArray, albumName: String)
     fun getFileUploads(user: User): LiveData<List<JobInfo>>
     fun cancelFilesUploadJob(user: User)
-    fun isStartFileUploadJobScheduled(user: User): Boolean
+    fun isAutoUploadScheduled(syncedFolderID: Long): Boolean
+    fun isStartFileUploadJobScheduled(accountName: String): Boolean
+    fun isAutoUploadIgnoringPowerSavingScheduled(syncedFolderID: Long): Boolean
+    fun schedulePeriodicAutoUpload()
+    fun cancelEnqueuedAutoUploads()
+    fun cancelFilesDownloadJob(accountName: String, fileId: Long)
 
-    fun cancelFilesDownloadJob(user: User, fileId: Long)
-
-    fun isStartFileDownloadJobScheduled(user: User, fileId: Long): Boolean
-
-    @Suppress("LongParameterList")
     fun startFileDownloadJob(
         user: User,
         file: OCFile,
@@ -163,4 +171,13 @@ interface BackgroundJobManager {
     fun cancelAllJobs()
     fun schedulePeriodicHealthStatus()
     fun startHealthStatus()
+    fun startOfflineOperations()
+    fun startPeriodicallyOfflineOperation()
+    fun scheduleInternal2WaySync(intervalMinutes: Long)
+    fun runNowInternal2WaySync()
+    fun cancelAllFilesDownloadJobs()
+    fun startMetadataSyncJob(currentDirPath: String, folderAlreadySynced: Boolean = false)
+    fun downloadFolder(folder: OCFile, accountName: String)
+    fun cancelFolderDownload()
+    fun locallyDeleteAutoUploadedFiles(syncedFolders: List<SyncedFolder>)
 }

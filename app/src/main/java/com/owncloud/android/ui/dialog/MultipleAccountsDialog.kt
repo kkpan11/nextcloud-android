@@ -1,11 +1,11 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2021 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2019 Tobias Kaminsky <tobias@kaminsky.me>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.dialog
 
@@ -18,6 +18,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nextcloud.client.account.User
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.di.Injectable
+import com.nextcloud.utils.avatar.AvatarGenerator
 import com.owncloud.android.R
 import com.owncloud.android.databinding.MultipleAccountsBinding
 import com.owncloud.android.ui.adapter.UserListAdapter
@@ -25,7 +26,10 @@ import com.owncloud.android.ui.adapter.UserListItem
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import javax.inject.Inject
 
-class MultipleAccountsDialog : DialogFragment(), Injectable, UserListAdapter.ClickListener {
+class MultipleAccountsDialog :
+    DialogFragment(),
+    Injectable,
+    UserListAdapter.ClickListener {
     @JvmField
     @Inject
     var accountManager: UserAccountManager? = null
@@ -33,6 +37,10 @@ class MultipleAccountsDialog : DialogFragment(), Injectable, UserListAdapter.Cli
     @JvmField
     @Inject
     var viewThemeUtils: ViewThemeUtils? = null
+
+    @Inject
+    lateinit var avatarGenerator: AvatarGenerator
+
     var highlightCurrentlyActiveAccount = true
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -48,7 +56,8 @@ class MultipleAccountsDialog : DialogFragment(), Injectable, UserListAdapter.Cli
             false,
             highlightCurrentlyActiveAccount,
             false,
-            viewThemeUtils
+            viewThemeUtils,
+            avatarGenerator
         )
 
         binding.list.setHasFixedSize(true)
@@ -62,13 +71,13 @@ class MultipleAccountsDialog : DialogFragment(), Injectable, UserListAdapter.Cli
         return builder.create()
     }
 
+    /**
+     * creates the account list items list including the add-account action in case
+     * multi account support is enabled.
+     *
+     * @return list of account list items
+     */
     private val accountListItems: List<UserListItem>
-        /**
-         * creates the account list items list including the add-account action in case
-         * multiaccount_support is enabled.
-         *
-         * @return list of account list items
-         */
         get() {
             val users = accountManager?.allUsers ?: listOf()
 

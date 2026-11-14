@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.files
 
@@ -144,7 +144,5 @@ internal class Registry(
      * @param id transfer id
      * @return transfer status if found, null otherwise
      */
-    fun getTransfer(uuid: UUID): Transfer? {
-        return pendingQueue[uuid] ?: runningQueue[uuid] ?: completedQueue[uuid]
-    }
+    fun getTransfer(uuid: UUID): Transfer? = pendingQueue[uuid] ?: runningQueue[uuid] ?: completedQueue[uuid]
 }

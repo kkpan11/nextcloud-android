@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.appinfo
 
@@ -16,17 +16,11 @@ class AppInfoImpl : AppInfo {
     override val versionCode: Int = BuildConfig.VERSION_CODE
     override val isDebugBuild: Boolean = BuildConfig.DEBUG
 
-    override fun getAppVersion(context: Context): String {
-        return try {
-            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            if (pInfo != null) {
-                pInfo.versionName
-            } else {
-                "n/a"
-            }
-        } catch (e: PackageManager.NameNotFoundException) {
-            Log_OC.e(this, "Trying to get packageName", e.cause)
-            "n/a"
-        }
+    override fun getAppVersion(context: Context): String = try {
+        val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        packageInfo.versionName ?: "n/a"
+    } catch (e: PackageManager.NameNotFoundException) {
+        Log_OC.e(this, "Trying to get packageName", e.cause)
+        "n/a"
     }
 }

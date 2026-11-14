@@ -1,33 +1,32 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2017-2020 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2018 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2015 María Asensio Valverde <masensio@solidgear.es>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.ui.dialog
 
 import android.app.Dialog
 import android.content.DialogInterface
 import android.os.Bundle
-import android.text.TextUtils
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.nextcloud.client.di.Injectable
+import com.nextcloud.utils.SnackbarUtil
 import com.nextcloud.utils.extensions.getParcelableArgument
 import com.owncloud.android.R
 import com.owncloud.android.databinding.PasswordDialogBinding
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.lib.resources.shares.OCShare
 import com.owncloud.android.ui.activity.FileActivity
-import com.owncloud.android.utils.DisplayUtils
 import com.owncloud.android.utils.KeyboardUtils
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import javax.inject.Inject
@@ -38,7 +37,9 @@ import javax.inject.Inject
  *
  * Triggers the share when the password is introduced.
  */
-class SharePasswordDialogFragment : DialogFragment(), Injectable {
+class SharePasswordDialogFragment :
+    DialogFragment(),
+    Injectable {
     @JvmField
     @Inject
     var viewThemeUtils: ViewThemeUtils? = null
@@ -67,8 +68,8 @@ class SharePasswordDialogFragment : DialogFragment(), Injectable {
 
                     if (sharePassword != null) {
                         val password = sharePassword.toString()
-                        if (!askForPassword && TextUtils.isEmpty(password)) {
-                            DisplayUtils.showSnackMessage(binding?.root, R.string.share_link_empty_password)
+                        if (!askForPassword && password.isBlank()) {
+                            SnackbarUtil.show(binding?.root, R.string.share_link_empty_password)
                             return@setOnClickListener
                         }
                         if (share == null) {
@@ -112,7 +113,7 @@ class SharePasswordDialogFragment : DialogFragment(), Injectable {
         binding = PasswordDialogBinding.inflate(inflater, null, false)
 
         // Setup layout
-        binding?.sharePassword?.setText("")
+        binding?.sharePassword?.setText(R.string.empty)
         viewThemeUtils?.material?.colorTextInputLayout(binding!!.sharePasswordContainer)
 
         val neutralButtonTextId: Int

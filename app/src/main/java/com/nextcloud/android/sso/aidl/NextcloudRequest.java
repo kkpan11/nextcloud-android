@@ -4,7 +4,7 @@
  * SPDX-FileCopyrightText: 2021 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2021 Nextcloud GmbH
  * SPDX-FileCopyrightText: 2017 David Luhmer <david-dev@live.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.android.sso.aidl;
 
@@ -21,9 +21,13 @@ public class NextcloudRequest implements Serializable {
 
     private static final long serialVersionUID = 215521212534240L; //assign a long value
 
+    public static final String ADDITIONAL_PARAMETER_MOVE_DESTINATION = "Destination";
+    public static final String ADDITIONAL_PARAMETER_MOVE_OVERWRITE = "Overwrite";
+
     private String method;
     private Map<String, List<String>> header = new HashMap<>();
     private Map<String, String> parameter = new HashMap<>();
+    private Map<String, String> additionalParameter = new HashMap<>();
     private final Collection<QueryParam> parameterV2 = new LinkedList<>();
     private String requestBody;
     private String url;
@@ -57,6 +61,15 @@ public class NextcloudRequest implements Serializable {
 
         public Builder setParameter(Map<String, String> parameter) {
             ncr.parameter = parameter;
+            return this;
+        }
+
+        public Builder setAdditionalParameters(Map<String, String> ap) {
+            ncr.additionalParameter = ap;
+            return this;
+        }
+        public Builder setAdditionalParameter(String key, String value) {
+            ncr.additionalParameter.put(key, value);
             return this;
         }
 
@@ -101,6 +114,13 @@ public class NextcloudRequest implements Serializable {
 
     public Map<String, String> getParameter() {
         return this.parameter;
+    }
+
+    public Map<String, String> getAdditionalParameters() {
+        return this.additionalParameter;
+    }
+    public String getAdditionalParameter(String key) {
+        return this.additionalParameter.get(key);
     }
 
     public String getRequestBody() {

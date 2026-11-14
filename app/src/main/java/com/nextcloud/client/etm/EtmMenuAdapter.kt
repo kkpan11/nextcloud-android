@@ -2,10 +2,11 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.etm
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
@@ -15,13 +16,12 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.owncloud.android.R
 
-class EtmMenuAdapter(
-    context: Context,
-    val onItemClicked: (Int) -> Unit
-) : RecyclerView.Adapter<EtmMenuAdapter.PageViewHolder>() {
+class EtmMenuAdapter(context: Context, val onItemClicked: (Int) -> Unit) :
+    RecyclerView.Adapter<EtmMenuAdapter.PageViewHolder>() {
 
     private val layoutInflater = LayoutInflater.from(context)
     var pages: List<EtmMenuEntry> = listOf()
+        @SuppressLint("NotifyDataSetChanged")
         set(value) {
             field = value
             notifyDataSetChanged()
@@ -49,7 +49,5 @@ class EtmMenuAdapter(
         holder.secondaryAction.setImageResource(0)
     }
 
-    override fun getItemCount(): Int {
-        return pages.size
-    }
+    override fun getItemCount(): Int = pages.size
 }

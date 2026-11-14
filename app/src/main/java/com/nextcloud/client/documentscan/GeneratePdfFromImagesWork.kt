@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.documentscan
 
@@ -20,6 +20,7 @@ import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.jobs.upload.FileUploadHelper
 import com.nextcloud.client.jobs.upload.FileUploadWorker
 import com.nextcloud.client.logger.Logger
+import com.nextcloud.model.OCUploadLocalPathData
 import com.owncloud.android.R
 import com.owncloud.android.datamodel.OCFile
 import com.owncloud.android.files.services.NameCollisionPolicy
@@ -29,7 +30,6 @@ import com.owncloud.android.utils.theme.ViewThemeUtils
 import java.io.File
 import java.security.SecureRandom
 
-@Suppress("Detekt.LongParameterList") // constructed only from factory method and tests
 class GeneratePdfFromImagesWork(
     private val appContext: Context,
     private val generatePdfUseCase: GeneratePDFUseCase,
@@ -108,17 +108,8 @@ class GeneratePdfFromImagesWork(
     private fun uploadFile(user: User, uploadFolder: String, pdfPath: String) {
         val uploadPath = uploadFolder + OCFile.PATH_SEPARATOR + File(pdfPath).name
 
-        FileUploadHelper().uploadNewFiles(
-            user,
-            arrayOf(pdfPath),
-            arrayOf(uploadPath),
-            FileUploadWorker.LOCAL_BEHAVIOUR_DELETE, // MIME type will be detected from file name
-            true,
-            UploadFileOperation.CREATED_BY_USER,
-            false,
-            false,
-            NameCollisionPolicy.ASK_USER
-        )
+        val data = OCUploadLocalPathData.forDocument(user, arrayOf(pdfPath), arrayOf(uploadPath))
+        FileUploadHelper().uploadNewFiles(data)
     }
 
     companion object {

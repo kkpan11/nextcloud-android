@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.components
 
@@ -13,6 +13,7 @@ import android.util.AttributeSet
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatEditText
 
 @SuppressLint("ClickableViewAccessibility")
@@ -25,7 +26,10 @@ class PassCodeEditText(context: Context, attrs: AttributeSet?) : AppCompatEditTe
     private fun disableFocusChangeViaTap() {
         setSelectAllOnFocus(false)
         setTextIsSelectable(false)
-        setOnTouchListener { _: View?, _: MotionEvent? -> true }
+        setOnTouchListener { _: View?, _: MotionEvent? ->
+            showKeyboard()
+            true
+        }
     }
 
     override fun onKeyPreIme(keyCode: Int, event: KeyEvent): Boolean {
@@ -36,4 +40,9 @@ class PassCodeEditText(context: Context, attrs: AttributeSet?) : AppCompatEditTe
         }
         return super.dispatchKeyEvent(event)
     }
+}
+
+fun PassCodeEditText.showKeyboard() {
+    val imm = this.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    imm.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
 }

@@ -9,7 +9,7 @@
  * SPDX-FileCopyrightText: 2013-2015 David A. Velasco <dvelasco@solidgear.es>
  * SPDX-FileCopyrightText: 2011-2012 Bartosz Przybylski <bart.p.pl@gmail.com>
  * SPDX-FileCopyrightText: 2011 Sven Aßmann <sven.assmann@lubico.biz>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.syncadapter;
 
@@ -26,6 +26,7 @@ import android.content.SyncResult;
 import android.os.Bundle;
 
 import com.nextcloud.client.account.UserAccountManager;
+import com.nextcloud.utils.AppConstants;
 import com.owncloud.android.R;
 import com.owncloud.android.authentication.AuthenticatorActivity;
 import com.owncloud.android.datamodel.FileDataStorageManager;
@@ -48,6 +49,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import androidx.annotation.PluralsRes;
 import androidx.core.app.NotificationCompat;
@@ -153,10 +155,12 @@ public class FileSyncAdapter extends AbstractOwnCloudSyncAdapter {
         mLastFailedResult = null;
         mConflictsFound = 0;
         mFailsInFavouritesFound = 0;
-        mForgottenLocalFiles = new HashMap<String, String>();
+        mForgottenLocalFiles = new HashMap<>();
         mSyncResult = syncResult;
         mSyncResult.fullSyncRequested = false;
-        mSyncResult.delayUntil = (System.currentTimeMillis()/1000) + 3*60*60; // avoid too many automatic synchronizations
+        // avoid too many automatic synchronizations
+        mSyncResult.delayUntil = System.currentTimeMillis() / AppConstants.MILLIS_PER_SECOND +
+            TimeUnit.HOURS.toSeconds(3);
 
         this.setAccount(account);
         this.setContentProviderClient(providerClient);
@@ -481,10 +485,8 @@ public class FileSyncAdapter extends AbstractOwnCloudSyncAdapter {
         /// includes a pending intent in the notification showing a more detailed explanation
         Intent explanationIntent = new Intent(getContext(), ErrorsWhileCopyingHandlerActivity.class);
         explanationIntent.putExtra(ErrorsWhileCopyingHandlerActivity.EXTRA_USER, getUser());
-        ArrayList<String> remotePaths = new ArrayList<String>();
-        ArrayList<String> localPaths = new ArrayList<String>();
-        remotePaths.addAll(mForgottenLocalFiles.keySet());
-        localPaths.addAll(mForgottenLocalFiles.values());
+        ArrayList<String> remotePaths = new ArrayList<>(mForgottenLocalFiles.keySet());
+        ArrayList<String> localPaths = new ArrayList<>(mForgottenLocalFiles.values());
         explanationIntent.putExtra(ErrorsWhileCopyingHandlerActivity.EXTRA_LOCAL_PATHS, localPaths);
         explanationIntent.putExtra(ErrorsWhileCopyingHandlerActivity.EXTRA_REMOTE_PATHS, remotePaths);
         explanationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -525,11 +527,7 @@ public class FileSyncAdapter extends AbstractOwnCloudSyncAdapter {
     private void showNotification(int id, NotificationCompat.Builder builder) {
         NotificationManager notificationManager = (NotificationManager) getContext().
                 getSystemService(Context.NOTIFICATION_SERVICE);
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            builder.setChannelId(NotificationUtils.NOTIFICATION_CHANNEL_FILE_SYNC);
-        }
-
+        builder.setChannelId(NotificationUtils.NOTIFICATION_CHANNEL_FILE_SYNC);
         notificationManager.notify(id, builder.build());
     }
     /**

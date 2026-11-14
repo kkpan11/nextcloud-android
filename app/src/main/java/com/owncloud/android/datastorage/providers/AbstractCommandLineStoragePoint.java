@@ -5,7 +5,7 @@
  *   Copyright (C) 2016 Nextcloud
  *   Copyright (C) 2016 Bartosz Przybylski
  *
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 
 package com.owncloud.android.datastorage.providers;
@@ -44,7 +44,7 @@ abstract class AbstractCommandLineStoragePoint extends AbstractStoragePointProvi
 
             process.waitFor();
             final InputStream is = process.getInputStream();
-            final byte buffer[] = new byte[1024];
+            final byte[] buffer = new byte[1024];
             while (is.read(buffer) != -1) {
                 s.append(new String(buffer, "UTF8"));
             }

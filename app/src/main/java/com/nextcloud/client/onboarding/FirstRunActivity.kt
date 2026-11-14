@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2018 Tobias Kaminsky <tobias@kaminsky.me>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.onboarding
 
@@ -18,12 +18,16 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.viewpager.widget.ViewPager
+import androidx.viewpager2.widget.ViewPager2
 import com.nextcloud.android.common.ui.theme.utils.ColorRole
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.appinfo.AppInfo
 import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.preferences.AppPreferences
+import com.nextcloud.client.utils.IntentUtil
+import com.nextcloud.utils.SnackbarUtil
+import com.nextcloud.utils.mdm.MDMConfig
+import com.nextcloud.utils.view.ScreenMetrics
 import com.owncloud.android.BuildConfig
 import com.owncloud.android.R
 import com.owncloud.android.authentication.AuthenticatorActivity
@@ -32,14 +36,15 @@ import com.owncloud.android.features.FeatureItem
 import com.owncloud.android.ui.activity.BaseActivity
 import com.owncloud.android.ui.activity.FileDisplayActivity
 import com.owncloud.android.ui.adapter.FeaturesViewAdapter
-import com.owncloud.android.utils.DisplayUtils
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import javax.inject.Inject
 
 /**
  * Activity displaying general feature after a fresh install.
  */
-class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injectable {
+class FirstRunActivity :
+    BaseActivity(),
+    Injectable {
 
     @JvmField
     @Inject
@@ -76,13 +81,12 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
         binding = FirstRunActivityBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val isProviderOrOwnInstallationVisible = resources.getBoolean(R.bool.show_provider_or_own_installation)
         setSlideshowSize(resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
 
         registerActivityResult()
         setupLoginButton()
-        setupSignupButton(isProviderOrOwnInstallationVisible)
-        setupHostOwnServerTextView(isProviderOrOwnInstallationVisible)
+        setupSignupButton(MDMConfig.showIntro(this))
+        setupHostOwnServerTextView(MDMConfig.showIntro(this))
         deleteAccountAtFirstLaunch()
         setupFeaturesViewAdapter()
         handleOnBackPressed()
@@ -90,7 +94,7 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
 
     private fun applyDefaultTheme() {
         defaultViewThemeUtils = viewThemeUtilsFactory?.withPrimaryAsBackground()
-        defaultViewThemeUtils?.platform?.themeStatusBar(this, ColorRole.PRIMARY)
+        defaultViewThemeUtils?.platform?.colorStatusBar(this, resources.getColor(R.color.primary))
     }
 
     private fun registerActivityResult() {
@@ -101,7 +105,7 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
                     val accountName = data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
                     val account = userAccountManager?.getAccountByName(accountName)
                     if (account == null) {
-                        DisplayUtils.showSnackMessage(this, R.string.account_creation_failed)
+                        SnackbarUtil.show(this, R.string.account_creation_failed)
                         return@registerForActivityResult
                     }
 
@@ -154,7 +158,7 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
         binding.hostOwnServer.visibility = if (isProviderOrOwnInstallationVisible) View.VISIBLE else View.GONE
         if (isProviderOrOwnInstallationVisible) {
             binding.hostOwnServer.setOnClickListener {
-                DisplayUtils.startLinkIntent(
+                IntentUtil.startLinkIntent(
                     this,
                     R.string.url_server_install
                 )
@@ -171,10 +175,14 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
 
     @Suppress("SpreadOperator")
     private fun setupFeaturesViewAdapter() {
-        val featuresViewAdapter = FeaturesViewAdapter(supportFragmentManager, *firstRun)
-        binding.progressIndicator.setNumberOfSteps(featuresViewAdapter.count)
+        val featuresViewAdapter = FeaturesViewAdapter(this, *firstRun)
+        binding.progressIndicator.setNumberOfSteps(featuresViewAdapter.itemCount)
         binding.contentPanel.adapter = featuresViewAdapter
-        binding.contentPanel.addOnPageChangeListener(this)
+        binding.contentPanel.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                binding.progressIndicator.animateToStep(position + 1)
+            }
+        })
     }
 
     private fun handleOnBackPressed() {
@@ -203,10 +211,9 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
     }
 
     private fun setSlideshowSize(isLandscape: Boolean) {
-        val isProviderOrOwnInstallationVisible = resources.getBoolean(R.bool.show_provider_or_own_installation)
         binding.buttonLayout.orientation = if (isLandscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
 
-        val layoutParams: LinearLayout.LayoutParams = if (isProviderOrOwnInstallationVisible) {
+        val layoutParams: LinearLayout.LayoutParams = if (MDMConfig.showIntro(this)) {
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -215,7 +222,7 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
             @Suppress("MagicNumber")
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                DisplayUtils.convertDpToPixel(if (isLandscape) 100f else 150f, this)
+                ScreenMetrics.dpToPx(if (isLandscape) 100f else 150f, this)
             )
         }
 
@@ -234,18 +241,6 @@ class FirstRunActivity : BaseActivity(), ViewPager.OnPageChangeListener, Injecta
     override fun onStop() {
         onFinish()
         super.onStop()
-    }
-
-    override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) {
-        // unused but to be implemented due to abstract parent
-    }
-
-    override fun onPageSelected(position: Int) {
-        binding.progressIndicator.animateToStep(position + 1)
-    }
-
-    override fun onPageScrollStateChanged(state: Int) {
-        // unused but to be implemented due to abstract parent
     }
 
     companion object {

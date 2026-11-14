@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.account
 
@@ -23,7 +23,9 @@ import java.net.URI
  * It serves as a semantically correct "empty value", allowing simplification of logic
  * in various components requiring user data, such as DB queries.
  */
-internal data class AnonymousUser(private val accountType: String) : User, Parcelable {
+internal data class AnonymousUser(private val accountType: String) :
+    User,
+    Parcelable {
 
     companion object {
         @JvmStatic
@@ -47,21 +49,22 @@ internal data class AnonymousUser(private val accountType: String) : User, Parce
     override val server = Server(URI.create(""), MainApp.MINIMUM_SUPPORTED_SERVER_VERSION)
     override val isAnonymous = true
 
-    override fun toPlatformAccount(): Account {
-        return Account(accountName, accountType)
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy Android Account access. Refactor code to use User object " +
+            "directly instead of platform Account."
+    )
+    override fun toPlatformAccount(): Account = Account(accountName, accountType)
 
-    override fun toOwnCloudAccount(): OwnCloudAccount {
-        return OwnCloudAccount(Uri.EMPTY, OwnCloudBasicCredentials("", ""))
-    }
+    @Deprecated(
+        "Temporary workaround: Legacy OwnCloudAccount access. Refactor code to use User object " +
+            "directly instead of OwnCloudAccount."
+    )
+    override fun toOwnCloudAccount(): OwnCloudAccount = OwnCloudAccount(Uri.EMPTY, OwnCloudBasicCredentials("", ""))
 
-    override fun nameEquals(user: User?): Boolean {
-        return user?.accountName.equals(accountName, true)
-    }
+    override fun nameEquals(user: User?): Boolean = user?.accountName.equals(accountName, true)
 
-    override fun nameEquals(accountName: CharSequence?): Boolean {
-        return accountName?.toString().equals(this.accountType, true)
-    }
+    override fun nameEquals(accountName: CharSequence?): Boolean =
+        accountName?.toString().equals(this.accountType, true)
 
     override fun describeContents() = 0
 

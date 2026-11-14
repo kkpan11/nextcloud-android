@@ -1,11 +1,11 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2024 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2017-2018 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2016 ownCloud Inc.
  * SPDX-FileCopyrightText: 2015 David A. Velasco <dvelasco@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.files.services;
 
@@ -92,7 +92,7 @@ public class IndexedForest<V> {
     public /* synchronized */ Pair<String, String> putIfAbsent(String accountName, String remotePath, V value) {
         String targetKey = buildKey(accountName, remotePath);
 
-        Node<V> valuedNode = new Node(targetKey, value);
+        Node<V> valuedNode = new Node<>(targetKey, value);
         Node<V> previousValue = mMap.putIfAbsent(
             targetKey,
             valuedNode
@@ -111,13 +111,13 @@ public class IndexedForest<V> {
             boolean linked = false;
             while (!OCFile.ROOT_PATH.equals(currentPath) && !linked) {
                 parentPath = new File(currentPath).getParent();
-                if (!parentPath.endsWith(OCFile.PATH_SEPARATOR)) {
+                if (parentPath != null && !parentPath.endsWith(OCFile.PATH_SEPARATOR)) {
                     parentPath += OCFile.PATH_SEPARATOR;
                 }
                 parentKey = buildKey(accountName, parentPath);
                 parentNode = mMap.get(parentKey);
                 if (parentNode == null) {
-                    parentNode = new Node(parentKey, null);
+                    parentNode = new Node<>(parentKey, null);
                     parentNode.addChild(currentNode);
                     mMap.put(parentKey, parentNode);
                 } else {
@@ -184,10 +184,7 @@ public class IndexedForest<V> {
     }
 
     private void removeDescendants(Node<V> removed) {
-        Iterator<Node<V>> childrenIt = removed.getChildren().iterator();
-        Node<V> child = null;
-        while (childrenIt.hasNext()) {
-            child = childrenIt.next();
+        for (Node<V> child : removed.getChildren()) {
             mMap.remove(child.getKey());
             removeDescendants(child);
         }
@@ -218,14 +215,7 @@ public class IndexedForest<V> {
      * @param accountName
      */
     public void remove(String accountName){
-        Iterator<String> it = mMap.keySet().iterator();
-        while (it.hasNext()) {
-            String key = it.next();
-            Log_OC.d("IndexedForest", "Number of pending downloads= "  + mMap.size());
-            if (key.startsWith(accountName)) {
-                mMap.remove(key);
-            }
-        }
+        mMap.keySet().removeIf(key -> key.startsWith(accountName));
     }
 
     /**

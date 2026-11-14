@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.device
 
@@ -56,9 +56,7 @@ class TestPowerManagementService {
             MockitoAnnotations.initMocks(this)
             powerManagementService = PowerManagementServiceImpl(
                 context,
-                platformPowerManager,
-                preferences,
-                deviceInfo
+                platformPowerManager
             )
         }
     }
@@ -83,32 +81,44 @@ class TestPowerManagementService {
         }
 
         @Test
-        fun `power saving exclusion is available for flagged vendors`() {
-            for (vendor in PowerManagementServiceImpl.OVERLY_AGGRESSIVE_POWER_SAVING_VENDORS) {
-                whenever(deviceInfo.vendor).thenReturn(vendor)
-                assertTrue("Vendor $vendor check failed", powerManagementService.isPowerSavingExclusionAvailable)
-            }
-        }
-
-        @Test
-        fun `power saving exclusion is not available for other vendors`() {
-            whenever(deviceInfo.vendor).thenReturn("some_other_nice_vendor")
-            assertFalse(powerManagementService.isPowerSavingExclusionAvailable)
-        }
-
-        @Test
         fun `power saving check is disabled`() {
             // GIVEN
-            //      a device which falsely returns power save mode enabled
-            //      power check is overridden by user
-            whenever(preferences.isPowerCheckDisabled).thenReturn(true)
-            whenever(platformPowerManager.isPowerSaveMode).thenReturn(true)
+            whenever(platformPowerManager.isPowerSaveMode).thenReturn(false)
 
             // WHEN
             //      power save mode is checked
             // THEN
             //      power saving is disabled
             assertFalse(powerManagementService.isPowerSavingEnabled)
+        }
+
+        private fun givenBatteryOptimizationIsIgnored(ignored: Boolean) {
+            whenever(context.getSystemService(Context.POWER_SERVICE)).thenReturn(platformPowerManager)
+            whenever(context.packageName).thenReturn("com.nextcloud.client")
+            whenever(platformPowerManager.isIgnoringBatteryOptimizations(any())).thenReturn(ignored)
+        }
+
+        @Test
+        fun `auto upload is blocked while the system still restricts the app`() {
+            whenever(platformPowerManager.isPowerSaveMode).thenReturn(true)
+            givenBatteryOptimizationIsIgnored(false)
+
+            assertTrue(powerManagementService.blocksAutoUpload)
+        }
+
+        @Test
+        fun `auto upload is not blocked once the app is excluded from battery optimization`() {
+            whenever(platformPowerManager.isPowerSaveMode).thenReturn(true)
+            givenBatteryOptimizationIsIgnored(true)
+
+            assertFalse(powerManagementService.blocksAutoUpload)
+        }
+
+        @Test
+        fun `auto upload is not blocked while battery saver is off`() {
+            whenever(platformPowerManager.isPowerSaveMode).thenReturn(false)
+
+            assertFalse(powerManagementService.blocksAutoUpload)
         }
     }
 
@@ -130,11 +140,10 @@ class TestPowerManagementService {
         }
 
         @Test
-        fun `battery charging status on API 17+`() {
+        fun `battery charging status`() {
             // GIVEN
-            //      device has API level 17+
             //      battery status sticky intent is available
-            whenever(deviceInfo.apiLevel).thenReturn(Build.VERSION_CODES.JELLY_BEAN_MR1)
+            whenever(deviceInfo.apiLevel).thenReturn(Build.VERSION_CODES.P)
             val powerSources = setOf(
                 BatteryManager.BATTERY_PLUGGED_AC,
                 BatteryManager.BATTERY_PLUGGED_USB,
@@ -144,29 +153,6 @@ class TestPowerManagementService {
             for (row in powerSources) {
                 // WHEN
                 //      device is charging using supported power source
-                whenever(intent.getIntExtra(eq(BatteryManager.EXTRA_PLUGGED), any()))
-                    .thenReturn(row)
-
-                // THEN
-                //      charging flag is true
-                assertTrue(powerManagementService.battery.isCharging)
-            }
-        }
-
-        @Test
-        fun `battery charging status on API 16`() {
-            // GIVEN
-            //      device has API level 16
-            //      battery status sticky intent is available
-            whenever(deviceInfo.apiLevel).thenReturn(Build.VERSION_CODES.JELLY_BEAN)
-            val powerSources = setOf(
-                BatteryManager.BATTERY_PLUGGED_AC,
-                BatteryManager.BATTERY_PLUGGED_USB
-            )
-
-            for (row in powerSources) {
-                // WHEN
-                //      device is charging using AC or USB
                 whenever(intent.getIntExtra(eq(BatteryManager.EXTRA_PLUGGED), any()))
                     .thenReturn(row)
 

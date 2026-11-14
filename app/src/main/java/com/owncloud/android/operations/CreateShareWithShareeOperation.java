@@ -6,7 +6,7 @@
  * SPDX-FileCopyrightText: 2016 Andy Scherzinger <info@andy-scherzinger.de>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2015 David A. Velasco <dvelasco@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.operations;
 
@@ -17,6 +17,8 @@ import com.nextcloud.client.account.User;
 import com.nextcloud.client.network.ClientFactory;
 import com.nextcloud.client.network.ClientFactoryImpl;
 import com.nextcloud.common.NextcloudClient;
+import com.nextcloud.utils.extensions.DecryptedUserExtensionsKt;
+import com.nextcloud.utils.extensions.OCFileExtensionsKt;
 import com.owncloud.android.R;
 import com.owncloud.android.datamodel.ArbitraryDataProvider;
 import com.owncloud.android.datamodel.FileDataStorageManager;
@@ -30,7 +32,7 @@ import com.owncloud.android.lib.resources.files.FileUtils;
 import com.owncloud.android.lib.resources.shares.CreateShareRemoteOperation;
 import com.owncloud.android.lib.resources.shares.OCShare;
 import com.owncloud.android.lib.resources.shares.ShareType;
-import com.owncloud.android.lib.resources.users.GetPublicKeyRemoteOperation;
+import com.owncloud.android.lib.resources.users.GetCertificateRemoteOperation;
 import com.owncloud.android.operations.common.SyncOperation;
 import com.owncloud.android.utils.EncryptionUtils;
 import com.owncloud.android.utils.EncryptionUtilsV2;
@@ -55,12 +57,14 @@ public class CreateShareWithShareeOperation extends SyncOperation {
     private String label;
     private final Context context;
     private final User user;
+    private String attributes;
 
     private ArbitraryDataProvider arbitraryDataProvider;
 
     private static final Set<ShareType> supportedShareTypes = new HashSet<>(Arrays.asList(ShareType.USER,
                                                                                           ShareType.GROUP,
                                                                                           ShareType.FEDERATED,
+                                                                                          ShareType.FEDERATED_GROUP,
                                                                                           ShareType.EMAIL,
                                                                                           ShareType.ROOM,
                                                                                           ShareType.CIRCLE));
@@ -84,6 +88,7 @@ public class CreateShareWithShareeOperation extends SyncOperation {
                                           String sharePassword,
                                           long expirationDateInMillis,
                                           boolean hideFileDownload,
+                                          String attributes,
                                           FileDataStorageManager storageManager,
                                           Context context,
                                           User user,
@@ -104,6 +109,7 @@ public class CreateShareWithShareeOperation extends SyncOperation {
         this.context = context;
         this.user = user;
         this.arbitraryDataProvider = arbitraryDataProvider;
+        this.attributes = attributes;
     }
 
     @Override
@@ -123,9 +129,9 @@ public class CreateShareWithShareeOperation extends SyncOperation {
             try {
                 String publicKey = EncryptionUtils.getPublicKey(user, shareeName, arbitraryDataProvider);
 
-                if (publicKey.equals("")) {
+                if (publicKey.isEmpty()) {
                     NextcloudClient nextcloudClient = new ClientFactoryImpl(context).createNextcloudClient(user);
-                    RemoteOperationResult<String> result = new GetPublicKeyRemoteOperation(shareeName).execute(nextcloudClient);
+                    RemoteOperationResult<String> result = new GetCertificateRemoteOperation(shareeName).execute(nextcloudClient);
                     if (result.isSuccess()) {
                         // store it
                         EncryptionUtils.savePublicKey(
@@ -155,7 +161,8 @@ public class CreateShareWithShareeOperation extends SyncOperation {
             false,
             sharePassword,
             permissions,
-            noteMessage
+            noteMessage,
+            attributes
         );
         operation.setGetShareDetails(true);
         RemoteOperationResult shareResult = operation.execute(client);
@@ -182,8 +189,9 @@ public class CreateShareWithShareeOperation extends SyncOperation {
             boolean metadataExists;
             if (metadata == null) {
                 String cert = EncryptionUtils.retrievePublicKeyForUser(user, context);
-                metadata = new EncryptionUtilsV2().createDecryptedFolderMetadataFile();
-                metadata.getUsers().add(new DecryptedUser(client.getUserId(), cert));
+                String e2eeVersion = getStorageManager().getE2EEVersion(user);
+                metadata = new EncryptionUtilsV2().createDecryptedFolderMetadataFile(e2eeVersion);
+                metadata.getUsers().add(new DecryptedUser(client.getUserId(), cert, null));
 
                 metadataExists = false;
             } else {
@@ -194,9 +202,12 @@ public class CreateShareWithShareeOperation extends SyncOperation {
 
             // add sharee to metadata
             String publicKey = EncryptionUtils.getPublicKey(user, shareeName, arbitraryDataProvider);
+
+            String decryptedMetadataKey = DecryptedUserExtensionsKt.findMetadataKeyByUserId(metadata.getUsers(), shareeName);
             DecryptedFolderMetadataFile newMetadata = encryptionUtilsV2.addShareeToMetadata(metadata,
                                                                                             shareeName,
-                                                                                            publicKey);
+                                                                                            publicKey,
+                                                                                            decryptedMetadataKey);
 
             // upload metadata
             metadata.getMetadata().setCounter(newCounter);
@@ -253,6 +264,7 @@ public class CreateShareWithShareeOperation extends SyncOperation {
         OCFile file = getStorageManager().getFileByPath(path);
         if (file != null) {
             file.setSharedWithSharee(true);    // TODO - this should be done by the FileContentProvider, as part of getStorageManager().saveShare(share)
+            OCFileExtensionsKt.addShare(file, share);
             getStorageManager().saveFile(file);
         }
     }

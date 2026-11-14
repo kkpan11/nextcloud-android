@@ -3,7 +3,7 @@
   ~ Nextcloud - Android Client
   ~
   ~ SPDX-FileCopyrightText: 2016 Andy Scherzinger <info@andy-scherzinger>
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -35,10 +35,12 @@
         <TextView
             android:id="@+id/subject"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:ellipsize="end"
             android:paddingStart="@dimen/activity_icon_layout_right_end_margin"
             android:paddingTop="@dimen/standard_padding"
+            android:paddingBottom="@dimen/standard_margin"
             android:paddingEnd="@dimen/zero"
             android:textAppearance="?android:attr/textAppearanceListItem"
             android:textSize="@dimen/two_line_primary_text_size"

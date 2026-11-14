@@ -1,10 +1,10 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2011 Bartek Przybylski
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.ui.activity
 
@@ -19,21 +19,30 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.snackbar.Snackbar
 import com.nextcloud.android.common.ui.theme.utils.ColorRole
 import com.nextcloud.client.di.Injectable
 import com.nextcloud.client.preferences.AppPreferences
+import com.nextcloud.utils.extensions.setVisibleIf
 import com.owncloud.android.R
 import com.owncloud.android.authentication.PassCodeManager
 import com.owncloud.android.databinding.PasscodelockBinding
 import com.owncloud.android.lib.common.utils.Log_OC
 import com.owncloud.android.ui.components.PassCodeEditText
+import com.owncloud.android.ui.components.showKeyboard
 import com.owncloud.android.utils.theme.ViewThemeUtils
-import java.util.Arrays
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.activity.OnBackPressedCallback
+import com.nextcloud.utils.AppConstants.ONE_SECOND
 
-@Suppress("TooManyFunctions", "MagicNumber")
-class PassCodeActivity : AppCompatActivity(), Injectable {
+@Suppress("MagicNumber")
+class PassCodeActivity :
+    AppCompatActivity(),
+    Injectable {
 
     companion object {
         private val TAG = PassCodeActivity::class.java.simpleName
@@ -52,42 +61,58 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
         const val PREFERENCE_PASSCODE_D4 = "PrefPinCode4"
     }
 
-    @JvmField
     @Inject
-    var preferences: AppPreferences? = null
+    lateinit var preferences: AppPreferences
 
-    @JvmField
     @Inject
-    var passCodeManager: PassCodeManager? = null
+    lateinit var passCodeManager: PassCodeManager
 
-    @JvmField
     @Inject
-    var viewThemeUtils: ViewThemeUtils? = null
+    lateinit var viewThemeUtils: ViewThemeUtils
 
     @get:VisibleForTesting
     lateinit var binding: PasscodelockBinding
         private set
 
     private val passCodeEditTexts = arrayOfNulls<PassCodeEditText>(4)
-    private var passCodeDigits: Array<String?>? = arrayOf("", "", "", "")
+    private var passCodeDigits: Array<String> = arrayOf("", "", "", "")
     private var confirmingPassCode = false
     private var changed = true // to control that only one blocks jump
+    private var delayInSeconds = 0
+
+    private val delayFormatter by lazy { PassCodeDelayFormatter(resources) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        delayInSeconds = preferences.passCodeDelay
         binding = PasscodelockBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        PassCodeManager.setSecureFlag(this, true)
         applyTint()
         setupPasscodeEditTexts()
         setSoftInputMode()
         setupUI(savedInstanceState)
         setTextListeners()
+        handleOnBackPressed()
+    }
+
+    private fun handleOnBackPressed() {
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (intent.action == ACTION_CHECK) return
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        )
     }
 
     private fun applyTint() {
-        viewThemeUtils?.platform?.colorViewBackground(binding.cardViewContent, ColorRole.SURFACE_VARIANT)
-        viewThemeUtils?.material?.colorMaterialButtonPrimaryBorderless(binding.cancel)
+        viewThemeUtils.platform.colorViewBackground(binding.cardViewContent, ColorRole.SURFACE_VARIANT)
+        viewThemeUtils.material.colorMaterialButtonPrimaryBorderless(binding.cancel)
     }
 
     private fun setupPasscodeEditTexts() {
@@ -97,10 +122,16 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
         passCodeEditTexts[3] = binding.txt3
 
         passCodeEditTexts.forEach {
-            it?.let { viewThemeUtils?.platform?.colorEditText(it) }
+            it?.let { editText ->
+                viewThemeUtils.platform.colorEditText(editText)
+            }
         }
 
         passCodeEditTexts[0]?.requestFocus()
+
+        binding.cardViewContent.setOnClickListener {
+            binding.txt0.showKeyboard()
+        }
     }
 
     private fun setSoftInputMode() {
@@ -117,7 +148,7 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
         } else if (ACTION_REQUEST_WITH_RESULT == intent.action) {
             if (savedInstanceState != null) {
                 confirmingPassCode = savedInstanceState.getBoolean(KEY_CONFIRMING_PASSCODE)
-                passCodeDigits = savedInstanceState.getStringArray(KEY_PASSCODE_DIGITS)
+                passCodeDigits = savedInstanceState.getStringArray(KEY_PASSCODE_DIGITS) ?: arrayOf("", "", "", "")
             }
             if (confirmingPassCode) {
                 // the app was in the passcode confirmation
@@ -141,14 +172,17 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
     }
 
     private fun setCancelButtonEnabled(enabled: Boolean) {
-        binding.cancel.visibility = if (enabled) {
-            View.VISIBLE
-        } else {
-            View.INVISIBLE
-        }
-        binding.cancel.setOnClickListener {
-            if (enabled) {
-                finish()
+        binding.cancel.run {
+            visibility = if (enabled) {
+                View.VISIBLE
+            } else {
+                View.INVISIBLE
+            }
+
+            setOnClickListener {
+                if (enabled) {
+                    finish()
+                }
             }
         }
     }
@@ -185,15 +219,16 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
                 passCodeEditTexts[passCodeIndex - 1]?.requestFocus()
 
                 if (!confirmingPassCode) {
-                    passCodeDigits?.set(passCodeIndex - 1, "")
+                    passCodeDigits[passCodeIndex - 1] = ""
                 }
 
-                passCodeEditTexts[passCodeIndex - 1]?.setText("")
+                passCodeEditTexts[passCodeIndex - 1]?.setText(R.string.empty)
 
                 changed = false
             } else if (!changed) {
                 changed = true
             }
+
             false
         }
     }
@@ -208,24 +243,25 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
     private fun processFullPassCode() {
         if (ACTION_CHECK == intent.action) {
             if (checkPassCode()) {
-                preferences?.resetPinWrongAttempts()
+                preferences.resetPinWrongAttempts()
+                preferences.passCodeDelay = 0
 
                 // / pass code accepted in request, user is allowed to access the app
-                passCodeManager?.updateLockTimestamp()
-                hideSoftKeyboard()
+                passCodeManager.updateLockTimestamp()
+                hideKeyboard()
                 finish()
             } else {
-                preferences?.increasePinWrongAttempts()
+                preferences.increasePinWrongAttempts()
                 showErrorAndRestart(R.string.pass_code_wrong, R.string.pass_code_enter_pass_code, View.INVISIBLE)
             }
         } else if (ACTION_CHECK_WITH_RESULT == intent.action) {
             if (checkPassCode()) {
-                passCodeManager?.updateLockTimestamp()
+                passCodeManager.updateLockTimestamp()
 
                 val resultIntent = Intent()
                 resultIntent.putExtra(KEY_CHECK_RESULT, true)
                 setResult(RESULT_OK, resultIntent)
-                hideSoftKeyboard()
+                hideKeyboard()
                 finish()
             } else {
                 showErrorAndRestart(R.string.pass_code_wrong, R.string.pass_code_enter_pass_code, View.INVISIBLE)
@@ -247,7 +283,7 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
         }
     }
 
-    private fun hideSoftKeyboard() {
+    private fun hideKeyboard() {
         currentFocus?.let {
             val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
             inputMethodManager.hideSoftInputFromWindow(
@@ -258,12 +294,11 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
     }
 
     private fun showErrorAndRestart(errorMessage: Int, headerMessage: Int, explanationVisibility: Int) {
-        passCodeDigits?.let { Arrays.fill(it, null) }
-
         Snackbar.make(findViewById(android.R.id.content), getString(errorMessage), Snackbar.LENGTH_LONG).show()
         binding.header.setText(headerMessage) // TODO check if really needed
         binding.explanation.visibility = explanationVisibility // TODO check if really needed
         clearBoxes()
+        increaseAndSaveDelayTime()
         showDelay()
     }
 
@@ -278,16 +313,14 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
     }
 
     private fun checkPassCode(): Boolean {
-        val savedPassCodeDigits = preferences?.passCode
-        return passCodeDigits?.zip(savedPassCodeDigits.orEmpty()) { input, saved ->
-            input != null && input == saved
-        }?.all { it } ?: false
+        val savedPassCodeDigits = preferences.passCode
+        return passCodeDigits.zip(savedPassCodeDigits.orEmpty()) { input, saved ->
+            input == saved
+        }.all { it }
     }
 
-    private fun confirmPassCode(): Boolean {
-        return passCodeEditTexts.indices.all { i ->
-            passCodeEditTexts[i]?.text.toString() == passCodeDigits!![i]
-        }
+    private fun confirmPassCode(): Boolean = passCodeEditTexts.indices.all { i ->
+        passCodeEditTexts[i]?.text.toString() == passCodeDigits[i]
     }
 
     private fun clearBoxes() {
@@ -320,50 +353,74 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
         val resultIntent = Intent()
         resultIntent.putExtra(
             KEY_PASSCODE,
-            passCodeDigits!![0] + passCodeDigits!![1] + passCodeDigits!![2] + passCodeDigits!![3]
+            passCodeDigits[0] + passCodeDigits[1] + passCodeDigits[2] + passCodeDigits[3]
         )
         setResult(RESULT_OK, resultIntent)
-        passCodeManager?.updateLockTimestamp()
+        passCodeManager.updateLockTimestamp()
         finish()
     }
 
-    private fun showDelay() {
-        val delay = preferences?.pinBruteForceDelay() ?: 0
+    @Suppress("MagicNumber")
+    private fun increaseAndSaveDelayTime() {
+        val maxDelayTimeInSeconds = 300
+        val delayIncrementation = 15
 
-        if (delay <= 0) {
+        if (delayInSeconds < maxDelayTimeInSeconds) {
+            delayInSeconds += delayIncrementation
+            preferences.passCodeDelay = delayInSeconds
+            preferences.increasePinWrongAttempts()
+        }
+    }
+
+    private fun showDelay() {
+        val pinBruteForceCount = preferences.pinBruteForceDelay()
+        if (pinBruteForceCount <= 0) {
             return
         }
 
-        binding.explanation.setText(R.string.brute_force_delay)
-        binding.explanation.visibility = View.VISIBLE
-        binding.txt0.isEnabled = false
-        binding.txt1.isEnabled = false
-        binding.txt2.isEnabled = false
-        binding.txt3.isEnabled = false
+        enableInputFields(false)
 
-        Thread(object : Runnable {
-            override fun run() {
-                try {
-                    Thread.sleep(delay * 1000L)
-
-                    runOnUiThread {
-                        binding.explanation.visibility = View.INVISIBLE
-                        binding.txt0.isEnabled = true
-                        binding.txt1.isEnabled = true
-                        binding.txt2.isEnabled = true
-                        binding.txt3.isEnabled = true
-                    }
-                } catch (e: InterruptedException) {
-                    Log_OC.e(this, "Could not delay password input prompt")
-                }
+        var counter = delayInSeconds
+        lifecycleScope.launch(Dispatchers.Main) {
+            while (counter != 0) {
+                binding.explanation.text = delayFormatter.getExplanationText(counter)
+                delay(ONE_SECOND)
+                counter -= 1
             }
-        }).start()
+
+            enableInputFields(true)
+            focusFirstInputField()
+        }
+    }
+
+    private fun enableInputFields(enabled: Boolean) {
+        binding.run {
+            explanation.setVisibleIf(!enabled)
+            txt0.isEnabled = enabled
+            txt1.isEnabled = enabled
+            txt2.isEnabled = enabled
+            txt3.isEnabled = enabled
+        }
+    }
+
+    private fun focusFirstInputField() {
+        binding.run {
+            txt0.requestFocus()
+            txt0.showKeyboard()
+        }
     }
 
     public override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean(KEY_CONFIRMING_PASSCODE, confirmingPassCode)
-        outState.putStringArray(KEY_PASSCODE_DIGITS, passCodeDigits)
+        outState.run {
+            putBoolean(KEY_CONFIRMING_PASSCODE, confirmingPassCode)
+            putStringArray(KEY_PASSCODE_DIGITS, passCodeDigits)
+        }
+    }
+
+    override fun onDestroy() {
+        PassCodeManager.setSecureFlag(this, false)
+        super.onDestroy()
     }
 
     private inner class PassCodeDigitTextWatcher(index: Int, lastOne: Boolean) : TextWatcher {
@@ -380,9 +437,7 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
             }
         }
 
-        private operator fun next(): Int {
-            return if (mLastOne) 0 else mIndex + 1
-        }
+        private operator fun next(): Int = if (mLastOne) 0 else mIndex + 1
 
         /**
          * Performs several actions when the user types a digit in an input field: - saves the input digit to the state
@@ -397,7 +452,7 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
                     val passCodeText = passCodeEditTexts[mIndex]?.text
 
                     if (passCodeText != null) {
-                        passCodeDigits!![mIndex] = passCodeText.toString()
+                        passCodeDigits[mIndex] = passCodeText.toString()
                     }
                 }
 
@@ -411,12 +466,7 @@ class PassCodeActivity : AppCompatActivity(), Injectable {
             }
         }
 
-        @Suppress("EmptyFunctionBlock")
-        override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-        }
-
-        @Suppress("EmptyFunctionBlock")
-        override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-        }
+        override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) = Unit
+        override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) = Unit
     }
 }

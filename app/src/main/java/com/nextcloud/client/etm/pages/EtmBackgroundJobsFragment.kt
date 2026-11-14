@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
  * SPDX-FileCopyrightText: 2020 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.etm.pages
 
@@ -16,6 +16,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.core.view.isVisible
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -30,7 +31,9 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import javax.inject.Inject
 
-class EtmBackgroundJobsFragment : EtmBaseFragment(), Injectable {
+class EtmBackgroundJobsFragment :
+    EtmBaseFragment(),
+    Injectable {
 
     @Inject
     lateinit var preferences: AppPreferences
@@ -51,9 +54,9 @@ class EtmBackgroundJobsFragment : EtmBaseFragment(), Injectable {
             private val executionLogRow = view.findViewById<View>(R.id.etm_background_execution_logs_row)
             val executionTimesRow = view.findViewById<View>(R.id.etm_background_execution_times_row)
 
-            var progressEnabled: Boolean = progressRow.visibility == View.VISIBLE
+            var progressEnabled: Boolean = progressRow.isVisible
                 get() {
-                    return progressRow.visibility == View.VISIBLE
+                    return progressRow.isVisible
                 }
                 set(value) {
                     field = value
@@ -64,9 +67,9 @@ class EtmBackgroundJobsFragment : EtmBaseFragment(), Injectable {
                     }
                 }
 
-            var logsEnabled: Boolean = executionLogRow.visibility == View.VISIBLE
+            var logsEnabled: Boolean = executionLogRow.isVisible
                 get() {
-                    return executionLogRow.visibility == View.VISIBLE
+                    return executionLogRow.isVisible
                 }
                 set(value) {
                     field = value
@@ -80,6 +83,7 @@ class EtmBackgroundJobsFragment : EtmBaseFragment(), Injectable {
 
         private val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:MM:ssZ", Locale.getDefault())
         var backgroundJobs: List<JobInfo> = emptyList()
+            @SuppressLint("NotifyDataSetChanged")
             set(value) {
                 field = value
                 notifyDataSetChanged()
@@ -96,9 +100,7 @@ class EtmBackgroundJobsFragment : EtmBaseFragment(), Injectable {
             return viewHolder
         }
 
-        override fun getItemCount(): Int {
-            return backgroundJobs.size
-        }
+        override fun getItemCount(): Int = backgroundJobs.size
 
         @SuppressLint("SetTextI18n")
         override fun onBindViewHolder(vh: ViewHolder, position: Int) {
@@ -164,40 +166,40 @@ class EtmBackgroundJobsFragment : EtmBaseFragment(), Injectable {
         return view
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         super.onCreateOptionsMenu(menu, inflater)
         inflater.inflate(R.menu.fragment_etm_background_jobs, menu)
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.etm_background_jobs_cancel -> {
-                vm.cancelAllJobs()
-                true
-            }
-
-            R.id.etm_background_jobs_prune -> {
-                vm.pruneJobs()
-                true
-            }
-
-            R.id.etm_background_jobs_start_test -> {
-                vm.startTestJob(periodic = false)
-                true
-            }
-
-            R.id.etm_background_jobs_schedule_test -> {
-                vm.startTestJob(periodic = true)
-                true
-            }
-
-            R.id.etm_background_jobs_cancel_test -> {
-                vm.cancelTestJob()
-                true
-            }
-
-            else -> super.onOptionsItemSelected(item)
+    @Deprecated("Deprecated in Java")
+    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
+        R.id.etm_background_jobs_cancel -> {
+            vm.cancelAllJobs()
+            true
         }
+
+        R.id.etm_background_jobs_prune -> {
+            vm.pruneJobs()
+            true
+        }
+
+        R.id.etm_background_jobs_start_test -> {
+            vm.startTestJob(periodic = false)
+            true
+        }
+
+        R.id.etm_background_jobs_schedule_test -> {
+            vm.startTestJob(periodic = true)
+            true
+        }
+
+        R.id.etm_background_jobs_cancel_test -> {
+            vm.cancelTestJob()
+            true
+        }
+
+        else -> super.onOptionsItemSelected(item)
     }
 
     private fun onBackgroundJobsUpdated(backgroundJobs: List<JobInfo>) {

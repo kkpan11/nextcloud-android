@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.documentscan
 
@@ -28,9 +28,7 @@ class DocumentPageListAdapter :
         holder.bind(currentList[position])
     }
 
-    override fun getItemCount(): Int {
-        return currentList.size
-    }
+    override fun getItemCount(): Int = currentList.size
 
     class DocumentPageViewHolder(val binding: DocumentPageItemBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(imagePath: String) {
@@ -39,10 +37,8 @@ class DocumentPageListAdapter :
     }
 
     private class DiffItemCallback : DiffUtil.ItemCallback<String>() {
-        override fun areItemsTheSame(oldItem: String, newItem: String) =
-            oldItem == newItem
+        override fun areItemsTheSame(oldItem: String, newItem: String) = oldItem == newItem
 
-        override fun areContentsTheSame(oldItem: String, newItem: String) =
-            oldItem == newItem
+        override fun areContentsTheSame(oldItem: String, newItem: String) = oldItem == newItem
     }
 }

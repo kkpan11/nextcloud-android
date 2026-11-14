@@ -1,9 +1,9 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.jobs.upload
 
@@ -19,7 +19,6 @@ import com.owncloud.android.files.services.NameCollisionPolicy
 import com.owncloud.android.lib.common.OwnCloudClient
 import com.owncloud.android.operations.UploadFileOperation
 
-@Suppress("LongParameterList")
 class UploadTask(
     private val applicationContext: Context,
     private val uploadsStorageManager: UploadsStorageManager,
@@ -35,7 +34,6 @@ class UploadTask(
      * This class is a helper factory to to keep static dependencies
      * injection out of the upload task instance.
      */
-    @Suppress("LongParameterList")
     class Factory(
         private val applicationContext: Context,
         private val uploadsStorageManager: UploadsStorageManager,
@@ -44,16 +42,14 @@ class UploadTask(
         private val clientProvider: () -> OwnCloudClient,
         private val fileDataStorageManager: FileDataStorageManager
     ) {
-        fun create(): UploadTask {
-            return UploadTask(
-                applicationContext,
-                uploadsStorageManager,
-                connectivityService,
-                powerManagementService,
-                clientProvider,
-                fileDataStorageManager
-            )
-        }
+        fun create(): UploadTask = UploadTask(
+            applicationContext,
+            uploadsStorageManager,
+            connectivityService,
+            powerManagementService,
+            clientProvider,
+            fileDataStorageManager
+        )
     }
 
     fun upload(user: User, upload: OCUpload): Result {
@@ -80,7 +76,6 @@ class UploadTask(
         val client = clientProvider()
         uploadsStorageManager.updateDatabaseUploadStart(op)
         val result = op.execute(client)
-        uploadsStorageManager.updateDatabaseUploadResult(result, op)
         return Result(file, result.isSuccess)
     }
 }

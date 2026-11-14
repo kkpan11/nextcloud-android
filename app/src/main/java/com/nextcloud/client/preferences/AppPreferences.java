@@ -13,6 +13,7 @@ package com.nextcloud.client.preferences;
 import com.nextcloud.appReview.AppReviewShownModel;
 import com.nextcloud.client.jobs.LogEntry;
 import com.owncloud.android.datamodel.OCFile;
+import com.owncloud.android.ui.fragment.FolderLayout;
 import com.owncloud.android.utils.FileSortOrder;
 
 import java.util.List;
@@ -63,6 +64,12 @@ public interface AppPreferences {
 
     boolean isShowHiddenFilesEnabled();
     void setShowHiddenFilesEnabled(boolean enabled);
+    
+    boolean isSortFoldersBeforeFiles();
+    void setSortFoldersBeforeFiles(boolean enabled);
+    
+    boolean isSortFavoritesFirst();
+    void setSortFavoritesFirst(boolean enabled);
 
     boolean isShowEcosystemApps();
     void setShowEcosystemApps(boolean enabled);
@@ -125,19 +132,19 @@ public interface AppPreferences {
     /**
      * Get preferred folder display type.
      *
-     * @param folder Folder
+     * @param layout FolderLayout
      * @return preference value, default is
      * {@link com.owncloud.android.ui.fragment.OCFileListFragment#FOLDER_LAYOUT_LIST}
      */
-    String getFolderLayout(OCFile folder);
+    String getFolderLayout(FolderLayout layout);
 
     /**
      * Set preferred folder display type.
      *
-     * @param folder Folder which layout is being set or null for root folder
+     * @param layout FolderLayout which layout is being set
      * @param layoutName preference value
      */
-    void setFolderLayout(@Nullable OCFile folder, String layoutName);
+    void setFolderLayout(@NonNull FolderLayout layout, String layoutName);
 
     /**
      * Saves the path where the user selected to do the last upload of a file shared from other app.
@@ -166,14 +173,6 @@ public interface AppPreferences {
      * @return 4 strings with digits or nulls
      */
     String[] getPassCode();
-
-    /**
-     * Gets the unlock via fingerprint preference configured by the user.
-     *
-     * @implNote  this is always false
-     * @return useFingerprint     is unlock with fingerprint enabled
-     */
-    boolean isFingerprintUnlockEnabled();
 
     /**
      * Gets the auto upload paths flag last set.
@@ -210,7 +209,7 @@ public interface AppPreferences {
      * Get preferred folder sort order.
      *
      * @param folder Folder whoch order is being retrieved or null for root folder
-     * @return sort order     the sort order, default is {@link FileSortOrder#sort_a_to_z} (sort by name)
+     * @return sort order     the sort order, default is {@link FileSortOrder# sort_a_to_z} (sort by name)
      */
     FileSortOrder getSortOrderByFolder(@Nullable OCFile folder);
 
@@ -232,7 +231,7 @@ public interface AppPreferences {
     /**
      * Get preferred folder sort order.
      *
-     * @return sort order     the sort order, default is {@link FileSortOrder#sort_a_to_z} (sort by name)
+     * @return sort order     the sort order, default is {@link FileSortOrder# sort_a_to_z} (sort by name)
      */
     FileSortOrder getSortOrderByType(FileSortOrder.Type type, FileSortOrder defaultOrder);
     FileSortOrder getSortOrderByType(FileSortOrder.Type type);
@@ -352,10 +351,6 @@ public interface AppPreferences {
 
     long getPhotoSearchTimestamp();
 
-    boolean isPowerCheckDisabled();
-
-    void setPowerCheckDisabled(boolean value);
-
     void increasePinWrongAttempts();
 
     void resetPinWrongAttempts();
@@ -374,10 +369,6 @@ public interface AppPreferences {
 
     void setGlobalUploadPaused(boolean globalPausedState);
 
-    void setPdfZoomTipShownCount(int count);
-
-    int getPdfZoomTipShownCount();
-
     boolean isStoragePermissionRequested();
 
     void setStoragePermissionRequested(boolean value);
@@ -391,4 +382,22 @@ public interface AppPreferences {
 
     @NonNull
     String getLastSelectedMediaFolder();
+
+    void setTwoWaySyncStatus(boolean value);
+    boolean isTwoWaySyncEnabled();
+
+    void setTwoWaySyncInterval(Long value);
+    Long getTwoWaySyncInterval();
+
+    boolean shouldStopDownloadJobsOnStart();
+    void setStopDownloadJobsOnStart(boolean value);
+
+    int getPassCodeDelay();
+    void setPassCodeDelay(int value);
+
+    String getLastDisplayedAccountName();
+    void setLastDisplayedAccountName(String lastDisplayedAccountName);
+
+    boolean startAutoUploadOnStart();
+    void setLastAutoUploadOnStartTime(long timeInMillisecond);
 }

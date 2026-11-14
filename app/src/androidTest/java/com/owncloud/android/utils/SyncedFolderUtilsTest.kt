@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Andy Scherzinger <info@andy-scherzinger.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils
 
@@ -11,6 +11,7 @@ import com.owncloud.android.AbstractIT
 import com.owncloud.android.datamodel.MediaFolder
 import com.owncloud.android.datamodel.MediaFolderType
 import com.owncloud.android.datamodel.SyncedFolder
+import com.owncloud.android.utils.SyncedFolderUtils.hasExcludePrefix
 import org.apache.commons.io.FileUtils
 import org.junit.AfterClass
 import org.junit.Assert
@@ -174,7 +175,8 @@ class SyncedFolderUtilsTest : AbstractIT() {
             MediaFolderType.IMAGE,
             false,
             SubFolderRule.YEAR_MONTH,
-            false
+            false,
+            SyncedFolder.NOT_SCANNED_YET
         )
         Assert.assertFalse(SyncedFolderUtils.isQualifyingMediaFolder(folder))
     }
@@ -198,9 +200,25 @@ class SyncedFolderUtilsTest : AbstractIT() {
             MediaFolderType.IMAGE,
             false,
             SubFolderRule.YEAR_MONTH,
-            false
+            false,
+            SyncedFolder.NOT_SCANNED_YET
         )
         Assert.assertFalse(SyncedFolderUtils.isQualifyingMediaFolder(folder))
+    }
+
+    @Test
+    fun testInstantUploadPathIgnoreExcludedPrefixes() {
+        val testFiles = listOf(
+            "IMG_nnn.jpg",
+            "my_documents",
+            "Music",
+            ".trashed_IMG_nnn.jpg",
+            ".pending_IMG_nnn.jpg",
+            ".nomedia",
+            ".thumbdata_IMG_nnn",
+            ".thumbnail"
+        ).filter { !hasExcludePrefix(it) }
+        Assert.assertTrue(testFiles.size == 3)
     }
 
     companion object {

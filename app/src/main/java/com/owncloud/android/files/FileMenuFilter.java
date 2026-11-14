@@ -1,7 +1,8 @@
 /*
  * Nextcloud - Android Client
  *
- * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2026 TSI-mc <surinder.kumar@t-systems.com>
+ * SPDX-FileCopyrightText: 2023 Alper Ozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2019-2023 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2022 Álvaro Brey Vilas <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2020 Andy Scherzinger <info@andy-scherzinger.de>
@@ -9,7 +10,7 @@
  * SPDX-FileCopyrightText: 2016 ownCloud Inc.
  * SPDX-FileCopyrightText: 2014-2016 David A. Velasco <dvelasco@solidgear.es>
  * SPDX-FileCopyrightText: 2012 Bartosz Przybylski <bart.p.pl@gmail.com>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.files;
 
@@ -22,7 +23,9 @@ import com.nextcloud.client.account.User;
 import com.nextcloud.client.editimage.EditImageActivity;
 import com.nextcloud.client.jobs.download.FileDownloadHelper;
 import com.nextcloud.client.jobs.upload.FileUploadHelper;
+import com.nextcloud.ui.fileactions.FileAction;
 import com.nextcloud.utils.EditorUtils;
+import com.nextcloud.utils.mdm.MDMConfig;
 import com.owncloud.android.R;
 import com.owncloud.android.datamodel.FileDataStorageManager;
 import com.owncloud.android.datamodel.OCFile;
@@ -36,6 +39,7 @@ import com.owncloud.android.utils.NextcloudServer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 
@@ -155,6 +159,7 @@ public class FileMenuFilter {
         filterSelectAll(toHide, inSingleFileFragment);
         filterDeselectAll(toHide, inSingleFileFragment);
         filterOpenWith(toHide, synchronizing);
+        filterOpenInWebEditor(toHide);
         filterCancelSync(toHide, synchronizing);
         filterSync(toHide, synchronizing);
         filterShareFile(toHide, capability);
@@ -166,11 +171,20 @@ public class FileMenuFilter {
         filterUnsetEncrypted(toHide, endToEndEncryptionEnabled);
         filterSetPictureAs(toHide);
         filterStream(toHide);
+        filterAddToAlbum(toHide);
         filterLock(toHide, fileLockingEnabled);
         filterUnlock(toHide, fileLockingEnabled);
         filterPinToHome(toHide);
+        filterRetry(toHide);
+        filterPermissionActions(toHide);
+        filterReadOnly(toHide);
 
         return toHide;
+    }
+
+    private void filterPermissionActions(List<Integer> toHide) {
+        final var actionsToHide = FileAction.Companion.getActionsToHide(new HashSet<>(files));
+        toHide.addAll(actionsToHide);
     }
 
 
@@ -183,9 +197,24 @@ public class FileMenuFilter {
     }
 
     private void filterSendFiles(List<Integer> toHide, boolean inSingleFileFragment) {
-        if ((overflowMenu || SEND_OFF.equalsIgnoreCase(context.getString(R.string.send_files_to_other_apps)) || containsEncryptedFile()) ||
-            (!inSingleFileFragment && (isSingleSelection() || !allFileDown())) ||
-            !toHide.contains(R.id.action_send_share_file)) {
+        boolean sendFilesNotSupported = context != null && !MDMConfig.INSTANCE.sendFilesSupport(context);
+        boolean hasEncryptedFile = containsEncryptedFile();
+        boolean isSingleSelection = isSingleSelection();
+        boolean allFilesNotDown = !allFileDown();
+
+        if (sendFilesNotSupported) {
+            toHide.add(R.id.action_send_file);
+            return;
+        }
+
+        if (overflowMenu || hasEncryptedFile) {
+            toHide.add(R.id.action_send_file);
+            return;
+        }
+
+        if (!inSingleFileFragment && (isSingleSelection || allFilesNotDown)) {
+            toHide.add(R.id.action_send_file);
+        } else if (!toHide.contains(R.id.action_send_share_file)) {
             toHide.add(R.id.action_send_file);
         }
     }
@@ -260,6 +289,12 @@ public class FileMenuFilter {
         }
     }
 
+    private void filterRetry(List<Integer> toHide) {
+        if (!files.iterator().next().isOfflineOperation()) {
+            toHide.add(R.id.action_retry);
+        }
+    }
+
     private void filterEdit(
         List<Integer> toHide,
         OCCapability capability
@@ -282,9 +317,15 @@ public class FileMenuFilter {
      */
     @NextcloudServer(max = 18)
     private boolean isRichDocumentEditingSupported(OCCapability capability, String mimeType) {
+        final var mimeTypeList = capability.getRichDocumentsMimeTypeList();
+        final var isMimeTypeListContainsMimeType = (mimeTypeList != null && mimeTypeList.contains(mimeType));
+
+        final var optionalMimeTypeList = capability.getRichDocumentsOptionalMimeTypeList();
+        final var isOptionalMimeTypeListContainsMimeType = (optionalMimeTypeList != null &&
+            optionalMimeTypeList.contains(mimeType));
+
         return isSingleFile() &&
-            (capability.getRichDocumentsMimeTypeList().contains(mimeType) ||
-                capability.getRichDocumentsOptionalMimeTypeList().contains(mimeType)) &&
+            (isMimeTypeListContainsMimeType || isOptionalMimeTypeListContainsMimeType) &&
             capability.getRichDocumentsDirectEditing().isTrue();
     }
 
@@ -292,6 +333,7 @@ public class FileMenuFilter {
         if (files.isEmpty() || (!anyFileDown() && !containsFolder()) || synchronizing || containsEncryptedFile()
             || containsEncryptedFolder()) {
             toHide.add(R.id.action_sync_file);
+            toHide.add(R.id.action_sync_all_files);
         }
     }
 
@@ -304,6 +346,19 @@ public class FileMenuFilter {
     private void filterOpenWith(Collection<Integer> toHide, boolean synchronizing) {
         if (!isSingleFile() || !anyFileDown() || synchronizing) {
             toHide.add(R.id.action_open_file_with);
+        }
+    }
+
+    private void filterOpenInWebEditor(Collection<Integer> toHide) {
+        if (!isSingleFile()) {
+            toHide.add(R.id.action_open_in_web_editor);
+            return;
+        }
+
+        OCFile file = files.iterator().next();
+        boolean canOpenLocally = file.isDown() && !file.isEncrypted();
+        if (!canOpenLocally || !editorUtils.isOfficeEditorAvailable(user, file.getMimeType())) {
+            toHide.add(R.id.action_open_in_web_editor);
         }
     }
 
@@ -329,6 +384,31 @@ public class FileMenuFilter {
             // Always hide in single file fragments
             toHide.add(R.id.action_select_all_action_menu);
         }
+    }
+
+    private void filterReadOnly(Collection<Integer> toHide) {
+        boolean anyReadOnly = false;
+        for (OCFile file : files) {
+            if (storageManager.isReadOnly(file)) {
+                anyReadOnly = true;
+                break;
+            }
+        }
+
+        if (!anyReadOnly) {
+            return;
+        }
+
+        toHide.add(R.id.action_remove_file);
+        toHide.add(R.id.action_rename_file);
+        toHide.add(R.id.action_move_or_copy);
+        toHide.add(R.id.action_edit);
+        toHide.add(R.id.action_encrypted);
+        toHide.add(R.id.action_unset_encrypted);
+        toHide.add(R.id.action_lock_file);
+        toHide.add(R.id.action_unlock_file);
+        toHide.add(R.id.action_favorite);
+        toHide.add(R.id.action_unset_favorite);
     }
 
     private void filterRemove(List<Integer> toHide, boolean synchronizing) {
@@ -368,6 +448,17 @@ public class FileMenuFilter {
         }
     }
 
+    private void filterAddToAlbum(List<Integer> toHide) {
+        if (files.isEmpty() || containsEncryptedFile()) {
+            toHide.add(R.id.action_add_to_album);
+            return;
+        }
+        OCFile file = files.iterator().next();
+        if (!MimeTypeUtil.isImageOrVideo(file)) {
+            toHide.add(R.id.action_add_to_album);
+        }
+    }
+
     private boolean anyFileSynchronizing() {
         boolean synchronizing = false;
         if (componentsGetter != null && !files.isEmpty() && user != null) {
@@ -390,8 +481,10 @@ public class FileMenuFilter {
     }
 
     private boolean anyFileDownloading() {
+        final var fileDownloadHelper = FileDownloadHelper.Companion.instance();
+
         for (OCFile file : files) {
-            if (FileDownloadHelper.Companion.instance().isDownloading(user, file)) {
+            if (fileDownloadHelper.isDownloading(user, file)) {
                 return true;
             }
         }
@@ -401,7 +494,7 @@ public class FileMenuFilter {
 
     private boolean anyFileUploading() {
         for (OCFile file : files) {
-            if (FileUploadHelper.Companion.instance().isUploading(user, file)) {
+            if (FileUploadHelper.Companion.instance().isUploading(file.getRemotePath(), user.getAccountName())) {
                 return true;
             }
         }
@@ -416,13 +509,11 @@ public class FileMenuFilter {
     }
 
     private boolean isShareWithUsersAllowed() {
-        return context != null &&
-            context.getResources().getBoolean(R.bool.share_with_users_feature);
+        return context != null && MDMConfig.INSTANCE.shareViaUser(context);
     }
 
     private boolean isShareViaLinkAllowed() {
-        return context != null &&
-            context.getResources().getBoolean(R.bool.share_via_link_feature);
+        return context != null && MDMConfig.INSTANCE.shareViaLink(context);
     }
 
     private boolean isSingleSelection() {
@@ -457,7 +548,7 @@ public class FileMenuFilter {
     }
 
     private boolean isGroupFolder() {
-        return files.iterator().next().isGroupFolder();
+        return files.iterator().next().mounted();
     }
 
     private boolean hasEncryptedParent() {

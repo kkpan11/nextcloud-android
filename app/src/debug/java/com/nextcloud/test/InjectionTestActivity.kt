@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2023 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.test
 
@@ -17,7 +17,9 @@ import javax.inject.Inject
 /**
  * Sample activity to check test overriding injections
  */
-class InjectionTestActivity : AppCompatActivity(), Injectable {
+class InjectionTestActivity :
+    AppCompatActivity(),
+    Injectable {
     @Inject
     lateinit var appPreferences: AppPreferences
 

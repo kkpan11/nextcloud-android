@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2023 Elv1zz <elv1zz.git@gmail.com>
  * SPDX-FileCopyrightText: 2022 Unpublished <unpublished@gmx.net>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui
 
@@ -15,7 +15,6 @@ import android.webkit.SslErrorHandler
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.fragment.app.FragmentManager
 import com.owncloud.android.authentication.AuthenticatorActivity
 import com.owncloud.android.lib.common.network.AdvancedX509KeyManager
@@ -28,11 +27,10 @@ import java.security.cert.CertificateException
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 
-open class NextcloudWebViewClient(val supportFragmentManager: FragmentManager) : WebViewClient() {
+open class NextcloudWebViewClient(val supportFragmentManager: FragmentManager) : SafeWebViewClient() {
 
     private val tag: String? = NextcloudWebViewClient::class.simpleName
 
-    @Suppress("TooGenericExceptionCaught")
     @SuppressLint("WebViewClientOnReceivedSslError")
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler, error: SslError?) {
         val cert = error?.let { getX509CertificateFromError(it) }

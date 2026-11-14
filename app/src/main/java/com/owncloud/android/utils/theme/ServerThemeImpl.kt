@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils.theme
 
@@ -25,7 +25,7 @@ class ServerThemeImpl @AssistedInject constructor(colorUtil: ColorUtil, @Assiste
 
     init {
         primaryColor =
-            colorUtil.getNullSafeColorWithFallbackRes(capability.serverColor, R.color.colorPrimary)
+            colorUtil.getNullSafeColorWithFallbackRes(capability.serverColor, R.color.primary)
         colorElement = colorUtil.getNullSafeColor(capability.serverElementColor, primaryColor)
         colorElementBright =
             colorUtil.getNullSafeColor(capability.serverElementColorBright, primaryColor)

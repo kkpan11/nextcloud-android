@@ -2,11 +2,11 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2023 TSI-mc
- * SPDX-FileCopyrightText: 2023 alperozturk <alper_ozturk@proton.me>
+ * SPDX-FileCopyrightText: 2023 alperozturk <alper.ozturk@nextcloud.com>
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2018-2022 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2016 Andy Scherzinger <info@andy-scherzinger.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.utils;
 
@@ -95,15 +95,37 @@ public final class MimeTypeUtil {
         if (context != null) {
             int iconId = MimeTypeUtil.getFileTypeIconId(mimetype, filename);
             Drawable icon = ContextCompat.getDrawable(context, iconId);
+            if (icon == null) {
+                return null;
+            }
+
+            icon = icon.mutate();
 
             if (R.drawable.file_zip == iconId) {
-                viewThemeUtils.platform.tintPrimaryDrawable(context, icon);
+                viewThemeUtils.platform.tintDrawable(context, icon, ColorRole.PRIMARY);
             }
 
             return icon;
         } else {
             return null;
         }
+    }
+
+    public static Drawable getIcon(String localPath, Context context, ViewThemeUtils viewThemeUtils) {
+        if (context == null) return null;
+
+        String mimeType = getMimeTypeFromPath(localPath);
+        List<String> possibleMimeTypes = Collections.singletonList(mimeType);
+        int iconId = determineIconIdByMimeTypeList(possibleMimeTypes);
+
+        Drawable result = ContextCompat.getDrawable(context, iconId);
+        if (result == null) return null;
+
+        if (R.drawable.file_zip == iconId) {
+            viewThemeUtils.platform.tintDrawable(context, result, ColorRole.PRIMARY);
+        }
+
+        return result;
     }
 
     /**
@@ -132,7 +154,7 @@ public final class MimeTypeUtil {
         return drawable;
     }
 
-    public static LayerDrawable getFileIcon(Boolean isDarkModeActive, Integer overlayIconId, Context context, ViewThemeUtils viewThemeUtils) {
+    public static LayerDrawable getFolderIcon(boolean isDarkModeActive, Integer overlayIconId, Context context, ViewThemeUtils viewThemeUtils) {
         Drawable folderDrawable = getDefaultFolderIcon(context, viewThemeUtils);
         assert(folderDrawable != null);
 
@@ -142,16 +164,14 @@ public final class MimeTypeUtil {
             return folderLayerDrawable;
         }
 
-        DrawableUtil drawableUtil = new DrawableUtil();
-
         Drawable overlayDrawable = ContextCompat.getDrawable(context, overlayIconId);
         assert(overlayDrawable != null);
 
         if (isDarkModeActive) {
-            overlayDrawable = drawableUtil.changeColor(overlayDrawable, R.color.dark);
+            overlayDrawable = DrawableUtil.INSTANCE.changeColor(overlayDrawable, R.color.dark);
         }
 
-        return drawableUtil.addDrawableAsOverlay(folderDrawable, overlayDrawable);
+        return DrawableUtil.INSTANCE.addDrawableAsOverlay(folderDrawable, overlayDrawable);
     }
 
     /**
@@ -443,6 +463,7 @@ public final class MimeTypeUtil {
         MIMETYPE_TO_ICON_MAPPING.put("application/rss+xml", R.drawable.file_code);
         MIMETYPE_TO_ICON_MAPPING.put("application/rtf", R.drawable.file);
         MIMETYPE_TO_ICON_MAPPING.put("application/vnd.android.package-archive", R.drawable.file_zip);
+        MIMETYPE_TO_ICON_MAPPING.put("application/vnd.excalidraw+json", R.drawable.file_whiteboard);
         MIMETYPE_TO_ICON_MAPPING.put("application/vnd.garmin.tcx+xml", R.drawable.file_location);
         MIMETYPE_TO_ICON_MAPPING.put("application/vnd.google-earth.kml+xml", R.drawable.file_location);
         MIMETYPE_TO_ICON_MAPPING.put("application/vnd.google-earth.kmz", R.drawable.file_location);

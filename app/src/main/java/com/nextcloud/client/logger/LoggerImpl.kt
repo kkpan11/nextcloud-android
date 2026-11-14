@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.logger
 
@@ -16,13 +16,13 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
-@Suppress("TooManyFunctions")
 internal class LoggerImpl(
     private val clock: Clock,
     private val handler: FileLogHandler,
     private val mainThreadHandler: Handler,
     queueCapacity: Int
-) : Logger, LogsRepository {
+) : Logger,
+    LogsRepository {
 
     data class Load(val onResult: (List<LogEntry>, Long) -> Unit)
     class Delete
@@ -133,6 +133,7 @@ internal class LoggerImpl(
                             event.onResult(entries, loaded.logSize)
                         }
                     }
+
                     is Delete -> handler.deleteAll()
                 }
             }

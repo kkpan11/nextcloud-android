@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.etm
 
@@ -32,7 +32,6 @@ import com.owncloud.android.R
 import com.owncloud.android.lib.common.accounts.AccountUtils
 import javax.inject.Inject
 
-@Suppress("LongParameterList") // Dependencies Injection
 @SuppressLint("StaticFieldLeak")
 class EtmViewModel @Inject constructor(
     private val context: Context,
@@ -76,7 +75,7 @@ class EtmViewModel @Inject constructor(
             pageClass = EtmPreferencesFragment::class
         ),
         EtmMenuEntry(
-            iconRes = R.drawable.ic_user,
+            iconRes = R.drawable.ic_user_outline,
             titleRes = R.string.etm_accounts,
             pageClass = EtmAccountsFragment::class
         ),

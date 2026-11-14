@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2019 David Luhmer <david-dev@live.de>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  *
  * More information here: https://github.com/abeluck/android-streams-ipc
  */
@@ -43,6 +43,7 @@ import org.apache.commons.httpclient.methods.RequestEntity;
 import org.apache.commons.httpclient.methods.StringRequestEntity;
 import org.apache.jackrabbit.webdav.DavConstants;
 import org.apache.jackrabbit.webdav.client.methods.MkColMethod;
+import org.apache.jackrabbit.webdav.client.methods.MoveMethod;
 import org.apache.jackrabbit.webdav.client.methods.PropFindMethod;
 import org.apache.jackrabbit.webdav.property.DavPropertyNameSet;
 
@@ -280,6 +281,15 @@ public class InputStreamBinder extends IInputStreamService.Stub {
                 method = new DeleteMethod(requestUrl);
                 break;
 
+            case "MOVE":
+                String destUrl = request.getAdditionalParameter(NextcloudRequest.ADDITIONAL_PARAMETER_MOVE_DESTINATION);
+                boolean overwrite =
+                    "true".equalsIgnoreCase(
+                        request.getAdditionalParameter(NextcloudRequest.ADDITIONAL_PARAMETER_MOVE_OVERWRITE)
+                    );
+                method = new MoveMethod(requestUrl, destUrl, overwrite);
+                break;
+
             case "PROPFIND":
                 method = new NCPropFindMethod(requestUrl, DavConstants.PROPFIND_ALL_PROP, DavConstants.DEPTH_1);
                 if (request.getRequestBody() != null) {
@@ -502,12 +512,15 @@ public class InputStreamBinder extends IInputStreamService.Stub {
 
     @VisibleForTesting
     public static NameValuePair[] convertMapToNVP(Map<String, String> map) {
-        NameValuePair[] nvp = new NameValuePair[map.size()];
+        final var nvp = new NameValuePair[map.size()];
         int i = 0;
-        for (String key : map.keySet()) {
-            nvp[i] = new NameValuePair(key, map.get(key));
+
+        for (Map.Entry<String, String> entry : map.entrySet()) {
+            final var nameValuePair = new NameValuePair(entry.getKey(), entry.getValue());
+            nvp[i] = nameValuePair;
             i++;
         }
+
         return nvp;
     }
 

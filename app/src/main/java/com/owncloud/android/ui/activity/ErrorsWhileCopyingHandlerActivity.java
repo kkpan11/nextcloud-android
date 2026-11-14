@@ -7,10 +7,11 @@
  * SPDX-FileCopyrightText: 2015 ownCloud Inc.
  * SPDX-FileCopyrightText: 2013 María Asensio Valverde <masensio@solidgear.es>
  * SPDX-FileCopyrightText: 2012-2013 David A. Velasco <dvelasco@solidgear.es>
- * SPDX-License-Identifier: GPL-2.0-only AND AGPL-3.0-or-later
+ * SPDX-License-Identifier: GPL-2.0-only AND (AGPL-3.0-or-later OR GPL-2.0-only)
  */
 package com.owncloud.android.ui.activity;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -27,13 +28,13 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import com.nextcloud.client.account.User;
+import com.nextcloud.utils.SnackbarUtil;
 import com.nextcloud.utils.extensions.IntentExtensionsKt;
 import com.owncloud.android.R;
 import com.owncloud.android.datamodel.FileDataStorageManager;
 import com.owncloud.android.datamodel.OCFile;
 import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.ui.dialog.IndeterminateProgressDialog;
-import com.owncloud.android.utils.DisplayUtils;
 import com.owncloud.android.utils.FileStorageUtils;
 
 import java.io.File;
@@ -194,6 +195,7 @@ public class ErrorsWhileCopyingHandlerActivity  extends AppCompatActivity implem
     /**
      * Asynchronous task performing the move of all the local files to the ownCloud folder.
      */
+    @SuppressLint("StaticFieldLeak")
     private class MoveFilesTask extends AsyncTask<Void, Void, Boolean> {
 
         /**
@@ -255,10 +257,9 @@ public class ErrorsWhileCopyingHandlerActivity  extends AppCompatActivity implem
 
             if (result) {
                 // nothing else to do in this activity
-                DisplayUtils.showSnackMessage(findViewById(android.R.id.content), R.string.foreign_files_success);
                 finish();
             } else {
-                DisplayUtils.showSnackMessage(findViewById(android.R.id.content), R.string.foreign_files_fail);
+                SnackbarUtil.show(findViewById(android.R.id.content), R.string.foreign_files_fail);
             }
         }
     }

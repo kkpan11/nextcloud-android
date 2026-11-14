@@ -4,7 +4,7 @@
   ~
   ~ SPDX-FileCopyrightText: 2017 Andy Scherzinger <info@andy-scherzinger.de>
   ~ SPDX-FileCopyrightText: 2017 Nextcloud
-  ~ SPDX-License-Identifier: AGPL-3.0-or-later
+  ~ SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -62,7 +62,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@id/userinfo_icon"
             app:layout_constraintTop_toTopOf="@id/userinfo_icon"
-            tools:text="John Doe" />
+            tools:text="@string/placeholder_first_name_last_name" />
 
         <TextView
             android:id="@+id/userinfo_username"
@@ -80,7 +80,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/userinfo_fullName"
             app:layout_constraintTop_toBottomOf="@id/userinfo_fullName"
-            tools:text="john@nextcloud.com" />
+            tools:text="@string/placeholder_example_mail" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -88,6 +88,7 @@
         android:id="@+id/userinfo_list"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_margin="@dimen/standard_margin"
         android:orientation="vertical"
         android:visibility="gone"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"

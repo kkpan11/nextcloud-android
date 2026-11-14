@@ -6,7 +6,7 @@
 # SPDX-FileCopyrightText: 2017-2024 Nextcloud GmbH and Nextcloud contributors
 # SPDX-FileCopyrightText: 2017 Jason Atwood 
 # SPDX-FileCopyrightText: 2017 Tobias Kaminsky <tobias@kaminsky.me>
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
 
 
 Encoding.default_external = Encoding::UTF_8
@@ -61,7 +61,7 @@ end
 
 # run Lint
 puts "running Lint..."
-system './gradlew clean lintGplayDebug 1>/dev/null'
+system './gradlew clean lintGplayDebug'
 
 # confirm that Lint ran w/out error
 result = $?.to_i

@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Álvaro Brey <alvaro@alvarobrey.com>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.database.entity
 
@@ -54,5 +54,11 @@ data class ShareEntity(
     @ColumnInfo(name = ProviderTableMeta.OCSHARES_SHARE_LINK)
     val shareLink: String?,
     @ColumnInfo(name = ProviderTableMeta.OCSHARES_SHARE_LABEL)
-    val shareLabel: String?
+    val shareLabel: String?,
+    @ColumnInfo(name = ProviderTableMeta.OCSHARES_DOWNLOADLIMIT_LIMIT)
+    val downloadLimitLimit: Int?,
+    @ColumnInfo(name = ProviderTableMeta.OCSHARES_DOWNLOADLIMIT_COUNT)
+    val downloadLimitCount: Int?,
+    @ColumnInfo(name = ProviderTableMeta.OCSHARES_ATTRIBUTES)
+    val attributes: String?
 )

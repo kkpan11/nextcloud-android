@@ -3,7 +3,7 @@
  *
  * SPDX-FileCopyrightText: 2022 Tobias Kaminsky <tobias@kaminsky.me>
  * SPDX-FileCopyrightText: 2022 Nextcloud GmbH
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.widget
 
@@ -11,33 +11,21 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.model.StreamEncoder
-import com.bumptech.glide.load.resource.file.FileToStreamDecoder
-import com.bumptech.glide.request.FutureTarget
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
 import com.nextcloud.android.lib.resources.dashboard.DashboardGetWidgetItemsRemoteOperation
 import com.nextcloud.android.lib.resources.dashboard.DashboardWidgetItem
 import com.nextcloud.client.account.UserAccountManager
 import com.nextcloud.client.network.ClientFactory
+import com.nextcloud.utils.GlideHelper
 import com.owncloud.android.R
+import com.owncloud.android.lib.common.OwnCloudClientManagerFactory
 import com.owncloud.android.lib.common.utils.Log_OC
 import com.owncloud.android.utils.BitmapUtils
-import com.owncloud.android.utils.DisplayUtils.SVG_SIZE
-import com.owncloud.android.utils.glide.CustomGlideStreamLoader
-import com.owncloud.android.utils.glide.CustomGlideUriLoader
-import com.owncloud.android.utils.svg.SVGorImage
-import com.owncloud.android.utils.svg.SvgOrImageBitmapTranscoder
-import com.owncloud.android.utils.svg.SvgOrImageDecoder
 import dagger.android.AndroidInjection
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.io.InputStream
 import javax.inject.Inject
 
 class DashboardWidgetService : RemoteViewsService() {
@@ -55,15 +43,13 @@ class DashboardWidgetService : RemoteViewsService() {
         AndroidInjection.inject(this)
     }
 
-    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
-        return StackRemoteViewsFactory(
-            this.applicationContext,
-            userAccountManager,
-            clientFactory,
-            intent,
-            widgetRepository
-        )
-    }
+    override fun onGetViewFactory(intent: Intent): RemoteViewsFactory = StackRemoteViewsFactory(
+        this.applicationContext,
+        userAccountManager,
+        clientFactory,
+        intent,
+        widgetRepository
+    )
 }
 
 class StackRemoteViewsFactory(
@@ -88,32 +74,29 @@ class StackRemoteViewsFactory(
             // TODO show error
             Log_OC.e(this, "No user found!")
         }
-
-        onDataSetChanged()
     }
 
     override fun onDataSetChanged() {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                if (widgetConfiguration.user.isPresent) {
-                    val client = clientFactory.createNextcloudClient(widgetConfiguration.user.get())
-                    val result = DashboardGetWidgetItemsRemoteOperation(widgetConfiguration.widgetId, LIMIT_SIZE)
-                        .execute(client)
-                    widgetItems = if (result.isSuccess) {
-                        result.resultData[widgetConfiguration.widgetId] ?: emptyList()
-                    } else {
-                        emptyList()
-                    }
-                    hasLoadMore = widgetConfiguration.moreButton != null && widgetItems.size == LIMIT_SIZE
-                } else {
-                    Log_OC.w(TAG, "User not present for widget update")
-                }
-            } catch (e: ClientFactory.CreationException) {
-                Log_OC.e(TAG, "Error updating widget", e)
-            }
+        Log_OC.d(TAG, "onDataSetChanged")
+
+        if (!widgetConfiguration.user.isPresent) {
+            Log_OC.w(TAG, "User not present for widget update")
+            return
         }
 
-        Log_OC.d(TAG, "onDataSetChanged")
+        try {
+            val client = clientFactory.createNextcloudClient(widgetConfiguration.user.get())
+            val result = DashboardGetWidgetItemsRemoteOperation(widgetConfiguration.widgetId, LIMIT_SIZE)
+                .execute(client)
+            widgetItems = if (result.isSuccess) {
+                result.resultData[widgetConfiguration.widgetId] ?: emptyList()
+            } else {
+                emptyList()
+            }
+            hasLoadMore = widgetConfiguration.moreButton != null && widgetItems.size == LIMIT_SIZE
+        } catch (e: ClientFactory.CreationException) {
+            Log_OC.e(TAG, "Error updating widget", e)
+        }
     }
 
     override fun onDestroy() {
@@ -122,29 +105,24 @@ class StackRemoteViewsFactory(
         widgetItems = emptyList()
     }
 
-    override fun getCount(): Int {
-        return if (hasLoadMore && widgetItems.isNotEmpty()) {
-            widgetItems.size + 1
-        } else {
-            widgetItems.size
-        }
+    override fun getCount(): Int = if (hasLoadMore && widgetItems.isNotEmpty()) {
+        widgetItems.size + 1
+    } else {
+        widgetItems.size
     }
 
-    override fun getViewAt(position: Int): RemoteViews {
-        return if (position == widgetItems.size) {
-            createLoadMoreView()
-        } else {
-            createItemView(position)
-        }
+    override fun getViewAt(position: Int): RemoteViews = if (position == widgetItems.size) {
+        createLoadMoreView()
+    } else {
+        createItemView(position)
     }
 
-    private fun createLoadMoreView(): RemoteViews {
-        return RemoteViews(context.packageName, R.layout.widget_item_load_more).apply {
-            val clickIntent = Intent(Intent.ACTION_VIEW, Uri.parse(widgetConfiguration.moreButton?.link))
+    private fun createLoadMoreView(): RemoteViews =
+        RemoteViews(context.packageName, R.layout.widget_item_load_more).apply {
+            val clickIntent = Intent(Intent.ACTION_VIEW, widgetConfiguration.moreButton?.link?.toUri())
             setTextViewText(R.id.load_more, widgetConfiguration.moreButton?.text)
             setOnClickFillInIntent(R.id.load_more_container, clickIntent)
         }
-    }
 
     // we will switch soon to coil and then streamline all of this
     // Kotlin cannot catch multiple exception types at same time
@@ -164,58 +142,34 @@ class StackRemoteViewsFactory(
             updateTexts(widgetItem, this)
 
             if (widgetItem.link.isNotEmpty()) {
-                val clickIntent = Intent(Intent.ACTION_VIEW, Uri.parse(widgetItem.link))
+                val clickIntent = Intent(Intent.ACTION_VIEW, widgetItem.link.toUri())
                 setOnClickFillInIntent(R.id.text_container, clickIntent)
             }
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     private fun loadIcon(widgetItem: DashboardWidgetItem, remoteViews: RemoteViews) {
-        val isIconSVG = Uri.parse(widgetItem.iconUrl).encodedPath!!.endsWith(".svg")
-        val source: FutureTarget<Bitmap> = if (isIconSVG) {
-            loadSVGIcon(widgetItem)
-        } else {
-            loadBitmapIcon(widgetItem)
-        }
+        val client = OwnCloudClientManagerFactory.getDefaultSingleton()
+            .getNextcloudClientFor(userAccountManager.user.toOwnCloudAccount(), context)
+        val iconSize = context.resources.getDimensionPixelSize(R.dimen.dashboard_widget_icon_size)
+        val bitmap = GlideHelper.getDrawable(context, client, widgetItem.iconUrl, iconSize)?.toBitmap() ?: return
+        remoteViews.setRemoteImageView(bitmap)
+    }
 
+    private fun RemoteViews.setRemoteImageView(source: Bitmap) {
         try {
             val bitmap: Bitmap = if (widgetConfiguration.roundIcon) {
-                BitmapUtils.roundBitmap(source.get())
+                BitmapUtils.roundBitmap(source)
             } else {
-                source.get()
+                val radius = context.resources.getDimension(R.dimen.file_icon_rounded_corner_radius)
+                BitmapUtils.roundCorners(source, radius)
             }
 
-            remoteViews.setImageViewBitmap(R.id.icon, bitmap)
+            setImageViewBitmap(R.id.icon, bitmap)
         } catch (e: Exception) {
             Log_OC.d(TAG, "Error setting icon", e)
-            remoteViews.setImageViewResource(R.id.icon, R.drawable.ic_dashboard)
+            setImageViewResource(R.id.icon, R.drawable.ic_dashboard)
         }
-    }
-
-    private fun loadSVGIcon(widgetItem: DashboardWidgetItem): FutureTarget<Bitmap> {
-        return Glide.with(context)
-            .using(
-                CustomGlideUriLoader(userAccountManager.user, clientFactory),
-                InputStream::class.java
-            )
-            .from(Uri::class.java)
-            .`as`(SVGorImage::class.java)
-            .transcode(SvgOrImageBitmapTranscoder(SVG_SIZE, SVG_SIZE), Bitmap::class.java)
-            .sourceEncoder(StreamEncoder())
-            .cacheDecoder(FileToStreamDecoder(SvgOrImageDecoder()))
-            .decoder(SvgOrImageDecoder())
-            .diskCacheStrategy(DiskCacheStrategy.SOURCE)
-            .load(Uri.parse(widgetItem.iconUrl))
-            .into(SVG_SIZE, SVG_SIZE)
-    }
-
-    private fun loadBitmapIcon(widgetItem: DashboardWidgetItem): FutureTarget<Bitmap> {
-        return Glide.with(context)
-            .using(CustomGlideStreamLoader(widgetConfiguration.user.get(), clientFactory))
-            .load(widgetItem.iconUrl)
-            .asBitmap()
-            .into(SVG_SIZE, SVG_SIZE)
     }
 
     private fun updateTexts(widgetItem: DashboardWidgetItem, remoteViews: RemoteViews) {
@@ -229,25 +183,17 @@ class StackRemoteViewsFactory(
         }
     }
 
-    override fun getLoadingView(): RemoteViews? {
-        return null
+    override fun getLoadingView(): RemoteViews? = null
+
+    override fun getViewTypeCount(): Int = if (hasLoadMore) {
+        2
+    } else {
+        1
     }
 
-    override fun getViewTypeCount(): Int {
-        return if (hasLoadMore) {
-            2
-        } else {
-            1
-        }
-    }
+    override fun getItemId(position: Int): Long = position.toLong()
 
-    override fun getItemId(position: Int): Long {
-        return position.toLong()
-    }
-
-    override fun hasStableIds(): Boolean {
-        return true
-    }
+    override fun hasStableIds(): Boolean = true
 
     companion object {
         private val TAG = DashboardWidgetService::class.simpleName

@@ -5,7 +5,7 @@
  * Copyright (C) 2022 TSI-mc
  * Copyright (C) 2022 Nextcloud GmbH
  *
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.owncloud.android.ui.fragment
 
@@ -13,6 +13,8 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.nextcloud.android.common.ui.theme.utils.ColorRole
 import com.nextcloud.client.di.Injectable
@@ -21,17 +23,25 @@ import com.owncloud.android.databinding.FragmentGalleryBottomSheetBinding
 import com.owncloud.android.utils.theme.ViewThemeUtils
 import javax.inject.Inject
 
-class GalleryFragmentBottomSheetDialog(
-    private val actions: GalleryFragmentBottomSheetActions
-) : BottomSheetDialogFragment(R.layout.fragment_gallery_bottom_sheet), Injectable {
+class GalleryFragmentBottomSheetDialog :
+    BottomSheetDialogFragment(R.layout.fragment_gallery_bottom_sheet),
+    Injectable {
     @Inject
     lateinit var viewThemeUtils: ViewThemeUtils
+
+    private val actions: GalleryFragmentBottomSheetActions?
+        get() = parentFragment as? GalleryFragmentBottomSheetActions
 
     private lateinit var binding: FragmentGalleryBottomSheetBinding
     private var currentMediaState: MediaState = MediaState.MEDIA_STATE_DEFAULT
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         binding = FragmentGalleryBottomSheetBinding.inflate(layoutInflater, container, false)
+
+        val bottomSheetDialog = dialog as BottomSheetDialog
+        bottomSheetDialog.behavior.state = BottomSheetBehavior.STATE_EXPANDED
+        bottomSheetDialog.behavior.skipCollapsed = true
+
         return binding.root
     }
 
@@ -64,10 +74,12 @@ class GalleryFragmentBottomSheetDialog(
                 binding.tickMarkShowImages.visibility = View.VISIBLE
                 binding.tickMarkShowVideos.visibility = View.GONE
             }
+
             MediaState.MEDIA_STATE_VIDEOS_ONLY -> {
                 binding.tickMarkShowImages.visibility = View.GONE
                 binding.tickMarkShowVideos.visibility = View.VISIBLE
             }
+
             else -> {
                 binding.tickMarkShowImages.visibility = View.VISIBLE
                 binding.tickMarkShowVideos.visibility = View.VISIBLE
@@ -95,18 +107,21 @@ class GalleryFragmentBottomSheetDialog(
             dismiss()
         }
         binding.btnSelectMediaFolder.setOnClickListener {
-            actions.selectMediaFolder()
+            actions?.selectMediaFolder()
             dismiss()
         }
     }
 
     private fun notifyStateChange() {
         setupLayout()
-        actions.updateMediaContent(currentMediaState)
+        actions?.updateMediaContent(currentMediaState)
     }
 
-    val currMediaState: MediaState
+    var currMediaState: MediaState
         get() = currentMediaState
+        set(value) {
+            currentMediaState = value
+        }
 
     enum class MediaState {
         MEDIA_STATE_DEFAULT,

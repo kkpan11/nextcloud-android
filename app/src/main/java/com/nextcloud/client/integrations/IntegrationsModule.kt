@@ -2,7 +2,7 @@
  * Nextcloud - Android Client
  *
  * SPDX-FileCopyrightText: 2020 Chris Narkiewicz <hello@ezaquarii.com>
- * SPDX-License-Identifier: AGPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later OR GPL-2.0-only
  */
 package com.nextcloud.client.integrations
 
@@ -16,7 +16,5 @@ import dagger.Provides
 @Module
 class IntegrationsModule {
     @Provides
-    fun deckApi(context: Context, packageManager: PackageManager): DeckApi {
-        return DeckApiImpl(context, packageManager)
-    }
+    fun deckApi(context: Context, packageManager: PackageManager): DeckApi = DeckApiImpl(context, packageManager)
 }
